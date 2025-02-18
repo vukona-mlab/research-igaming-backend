@@ -14,6 +14,7 @@ exports.update = async (req, res) => {
       speciality,
       category,
       extraAmount,
+      jobTitle,
     } = req.body;
     if (JSON.stringify(req.body) === "{}" && typeof req.file === "undefined") {
       res.status(500).json({ error: "Must have atleast one field to update" });
@@ -66,6 +67,9 @@ exports.update = async (req, res) => {
     }
     if (extraAmount !== "" && typeof extraAmount !== "undefined") {
       updateObj.extraAmount = extraAmount;
+    }
+    if (jobTitle !== "" && typeof jobTitle !== "undefined") {
+      updateObj.jobTitle = jobTitle;
     }
 
     if (JSON.stringify(updateObj) !== "{}") {
