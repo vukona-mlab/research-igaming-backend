@@ -3,24 +3,11 @@ const {
   firebaseDb,
   firebaseBucket,
 } = require("../config/firebase");
+const jwt = require("jsonwebtoken");
 
 // Register user
 exports.register = async (req, res) => {
-  const {
-    displayName,
-    email,
-    password,
-    name,
-    surname,
-    jobTitle,
-    phoneNumber,
-    profilePicture,
-    dateOfBirth,
-    specialities,
-    categories,
-    bio,
-    roles,
-  } = req.body;
+  const { email, password, roles } = req.body;
 
   try {
     // Create auth user
@@ -31,17 +18,17 @@ exports.register = async (req, res) => {
       .collection("users")
       .doc(userRecord.uid)
       .set({
-        displayName,
-        name,
-        surname,
-        email,
-        jobTitle,
-        phoneNumber,
-        profilePicture,
-        dateOfBirth,
-        specialities: specialities || [],
-        categories: categories || [],
-        bio,
+        displayName: "",
+        name: "",
+        surname: "",
+        email: email,
+        jobTitle: "",
+        phoneNumber: "",
+        profilePicture: "",
+        dateOfBirth: "",
+        specialities: [],
+        categories: [],
+        bio: "",
         roles: roles || ["client"],
         files: {},
         createdAt: new Date(),
@@ -110,12 +97,15 @@ exports.login = async (req, res) => {
       return res.status(404).json({ error: "User profile not found" });
     }
 
-    // Create custom token for the user
-    const customToken = await firebaseAuth.createCustomToken(userRecord.uid);
+    // Generate JWT token
+    const payload = { uid: userRecord.uid };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    }); // expires in 1 hour
 
     res.status(200).json({
       message: "Login successful",
-      token: customToken,
+      token: `Bearer ${token}`,
       user: {
         uid: userRecord.uid,
         ...userDoc.data(),
