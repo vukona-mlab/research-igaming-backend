@@ -4,6 +4,6 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 
 // // Create multer upload instance
-const upload = multer({ storage: storage }).single("profilePicture");
+const upload = multer({ storage: storage });
 
 module.exports = upload;

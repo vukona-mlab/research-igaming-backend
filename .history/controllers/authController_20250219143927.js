@@ -21,7 +21,7 @@ exports.register = async (req, res) => {
         displayName: "",
         name: "",
         surname: "",
-        email: email,
+        email: "",
         jobTitle: "",
         phoneNumber: "",
         profilePicture: "",
