@@ -17,13 +17,13 @@ const serviceAccount = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
 };
 
-// Initialize Firebase
+// Initialize Firebase Admin
 firebase.initializeApp({
   credential: firebase.credential.cert(serviceAccount),
   storageBucket: process.env.BUCKET_URL,
 });
 
-// Export both auth and firestore
+// Export auth, firestore and bucket instances
 const firebaseAuth = firebase.auth();
 const firebaseDb = firebase.firestore();
 const firebaseBucket = firebase.storage().bucket();

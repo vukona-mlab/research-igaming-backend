@@ -213,3 +213,47 @@ exports.update = async (req, res) => {
     res.status(500).json({ error: "An error occured during update" });
   }
 };
+
+// Google Sign In
+exports.googleSignIn = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    
+    // Verify the Google ID token
+    const credential = await firebaseAuth.verifyIdToken(idToken);
+    const { uid, email, name, picture } = credential;
+
+    // Check if user exists in Firestore
+    const userDoc = await firebaseDb.collection('users').doc(uid).get();
+    
+    if (!userDoc.exists) {
+      // Create new user profile if doesn't exist
+      await firebaseDb.collection('users').doc(uid).set({
+        displayName: name || '',
+        email: email,
+        profilePicture: picture || '',
+        roles: ['client'],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ uid }, process.env.JWT_SECRET, {
+      expiresIn: '1h'
+    });
+
+    res.status(200).json({
+      message: 'Google sign-in successful',
+      token: `Bearer ${token}`,
+      user: {
+        uid,
+        ...userDoc.data()
+      }
+    });
+
+  } catch (error) {
+    console.error('Google Sign-in Error:', error);
+    res.status(401).json({ error: 'Invalid Google token' });
+  }
+};
