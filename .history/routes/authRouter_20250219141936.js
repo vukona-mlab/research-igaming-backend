@@ -26,8 +26,8 @@ router.get(
 );
 router.put(
   "/:id/update",
-  upload,
   passport.authenticate("jwt", { session: false }),
+  upload,
   update
 );
 
