@@ -20,6 +20,7 @@ const serviceAccount = {
 // Initialize Firebase
 firebase.initializeApp({
   credential: firebase.credential.cert(serviceAccount),
+  storageBucket: process.env.BUCKET_URL,
 });
 
 // Export both auth and firestore
