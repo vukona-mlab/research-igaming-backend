@@ -1,4 +1,8 @@
-const { auth, bucket } = require("../config/firebase");
+const {
+  firebaseAuth,
+  firebaseDb,
+  firebaseBucket,
+} = require("../config/firebase");
 
 exports.update = async (req, res) => {
   const { id } = req.params;
@@ -28,7 +32,9 @@ exports.update = async (req, res) => {
         const extension = req.file.originalname.substring(
           req.file.originalname.indexOf(".") + 1
         );
-        const file = bucket.file("profile-pictures/" + id + "." + extension);
+        const file = firebaseBucket.file(
+          "profile-pictures/" + id + "." + extension
+        );
         const resp = await file.save(buffer, {});
         const imageUrl = await file.getSignedUrl({
           action: "read",
@@ -74,7 +80,10 @@ exports.update = async (req, res) => {
 
     if (JSON.stringify(updateObj) !== "{}") {
       try {
-        const result = await db.collection("users").doc(id).update(updateObj);
+        const result = await firebaseDb
+          .collection("users")
+          .doc(id)
+          .update(updateObj);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
