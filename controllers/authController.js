@@ -8,7 +8,6 @@ const jwt = require("jsonwebtoken");
 // Register user
 exports.register = async (req, res) => {
   const { email, password, roles } = req.body;
-
   try {
     // Create auth user
     const userRecord = await firebaseAuth.createUser({ email, password });
@@ -218,42 +217,62 @@ exports.update = async (req, res) => {
 exports.googleSignIn = async (req, res) => {
   try {
     const { idToken } = req.body;
-    
+
     // Verify the Google ID token
     const credential = await firebaseAuth.verifyIdToken(idToken);
     const { uid, email, name, picture } = credential;
 
     // Check if user exists in Firestore
-    const userDoc = await firebaseDb.collection('users').doc(uid).get();
-    
+    const userDoc = await firebaseDb.collection("users").doc(uid).get();
+
     if (!userDoc.exists) {
       // Create new user profile if doesn't exist
-      await firebaseDb.collection('users').doc(uid).set({
-        displayName: name || '',
-        email: email,
-        profilePicture: picture || '',
-        roles: ['client'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
+      await firebaseDb
+        .collection("users")
+        .doc(uid)
+        .set({
+          displayName: name || "",
+          email: email,
+          profilePicture: picture || "",
+          roles: ["client"],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
     }
 
     // Generate JWT token
     const token = jwt.sign({ uid }, process.env.JWT_SECRET, {
-      expiresIn: '1h'
+      expiresIn: "1h",
     });
 
     res.status(200).json({
-      message: 'Google sign-in successful',
+      message: "Google sign-in successful",
       token: `Bearer ${token}`,
       user: {
         uid,
-        ...userDoc.data()
-      }
+        ...userDoc.data(),
+      },
     });
-
   } catch (error) {
-    console.error('Google Sign-in Error:', error);
-    res.status(401).json({ error: 'Invalid Google token' });
+    console.error("Google Sign-in Error:", error);
+    res.status(401).json({ error: "Invalid Google token" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, displayName } = req.body;
+    firebaseAuth
+      .generatePasswordResetLink(email)
+      .then((link) => {
+        //return sendCustomPasswordResetEmail(email, displayName, link);
+      })
+      .catch((error) => {
+        // Some error occurred.
+      });
+
+    res.status(200).json({ message: "Reset email sent" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 };

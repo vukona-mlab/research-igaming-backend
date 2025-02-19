@@ -8,6 +8,7 @@ const {
   getProfile,
   update,
   googleSignIn,
+  resetPassword,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 
@@ -18,7 +19,7 @@ router.post("/login", login);
 // Google Sign-In endpoint
 // Handles the ID token verification and user creation/authentication
 
-router.post('/google', googleSignIn);
+router.post("/google", googleSignIn);
 
 router.put(
   "/users/:userId/roles",
@@ -36,5 +37,7 @@ router.put(
   passport.authenticate("jwt", { session: false }),
   update
 );
+
+router.post("/resetPassword", resetPassword);
 
 module.exports = router;
