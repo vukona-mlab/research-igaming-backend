@@ -7,6 +7,7 @@ const {
   updateRole,
   getProfile,
   update,
+  googleSignIn,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 
@@ -14,6 +15,11 @@ require("../passport");
 
 router.post("/register", register);
 router.post("/login", login);
+// Google Sign-In endpoint
+// Handles the ID token verification and user creation/authentication
+
+router.post('/google', googleSignIn);
+
 router.put(
   "/users/:userId/roles",
   passport.authenticate("jwt", { session: false }),
