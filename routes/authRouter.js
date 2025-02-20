@@ -32,7 +32,7 @@ router.get(
   getProfile
 );
 router.put(
-  "/:id/update",
+  "/users/:userId/update",
   upload,
   passport.authenticate("jwt", { session: false }),
   update

@@ -122,7 +122,7 @@ exports.login = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const { id } = req.params;
+  const { userId } = req.params;
   try {
     const {
       name,
@@ -150,7 +150,7 @@ exports.update = async (req, res) => {
           req.file.originalname.indexOf(".") + 1
         );
         const file = firebaseBucket.file(
-          "profile-pictures/" + id + "." + extension
+          "profile-pictures/" + userId + "." + extension
         );
         const resp = await file.save(buffer, {});
         const imageUrl = await file.getSignedUrl({
@@ -199,7 +199,7 @@ exports.update = async (req, res) => {
       try {
         const result = await firebaseDb
           .collection("users")
-          .doc(id)
+          .doc(userId)
           .update(updateObj);
       } catch (error) {
         res.status(500).json({ error: error.message });
