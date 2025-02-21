@@ -7,6 +7,7 @@ const {
   updateRole,
   getProfile,
   update,
+  deleteAccount,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 
@@ -29,6 +30,12 @@ router.put(
   upload,
   passport.authenticate("jwt", { session: false }),
   update
+);
+
+router.delete(
+  "/:id/delete",
+  passport.authenticate("jwt", { session: false }),
+  deleteAccount
 );
 
 module.exports = router;
