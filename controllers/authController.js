@@ -276,3 +276,47 @@ exports.resetPassword = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+exports.deleteAccount = async (req, res) => {
+  const { id } = req.params;
+
+  // Ensure user can only delete their own account
+  if (req.user.uid !== id) {
+    return res
+      .status(403)
+      .json({ error: "Forbidden: You can only delete your own account" });
+  }
+
+  try {
+    // Get user profile from Firestore
+    const userDoc = await firebaseDb.collection("users").doc(id).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userData = userDoc.data();
+
+    // Delete profile picture from Firebase Storage (if exists)
+    if (userData.profilePicture) {
+      try {
+        const filePath = userData.profilePicture.split("/").pop(); // Extract file name
+        await firebaseBucket.file(`profile-pictures/${filePath}`).delete();
+      } catch (err) {
+        console.warn("Profile picture deletion failed:", err.message);
+      }
+    }
+
+    // Delete user document from Firestore
+    await firebaseDb.collection("users").doc(id).delete();
+
+    // Delete user from Firebase Authentication
+    await firebaseAuth.deleteUser(id);
+
+    res.status(200).json({ message: "User account deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the account" });
+  }
+};

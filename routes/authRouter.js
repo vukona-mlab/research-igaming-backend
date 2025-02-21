@@ -9,6 +9,7 @@ const {
   update,
   googleSignIn,
   resetPassword,
+  deleteAccount,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 
@@ -39,5 +40,11 @@ router.put(
 );
 
 router.post("/resetPassword", resetPassword);
+
+router.delete(
+  "/:id/delete",
+  passport.authenticate("jwt", { session: false }),
+  deleteAccount
+);
 
 module.exports = router;
