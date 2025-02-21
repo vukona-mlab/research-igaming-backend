@@ -481,11 +481,11 @@ Query parameters:
 }
 ```
 
-### Order Schema
+### Transaction Schema
 
 ```javascript
 {
-    projectId: { type: ObjectId, ref: 'Gig', required: true },
+    projectId: { type: ObjectId, ref: 'Project', required: true },
     image: { type: String, required: false },
     title: { type: String, required: true },
     price: { type: Number, required: true },
