@@ -1,4 +1,4 @@
-const firebase = require("firebase-admin");
+const admin = require("firebase-admin");
 const dotenv = require("dotenv");
 
 // Load environment variables
@@ -18,14 +18,15 @@ const serviceAccount = {
 };
 
 // Initialize Firebase Admin
-firebase.initializeApp({
-  credential: firebase.credential.cert(serviceAccount),
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
   storageBucket: process.env.BUCKET_URL,
+  databaseURL: "https://research-igaming.firebaseio.com" // Replace with your database URL
 });
 
 // Export auth, firestore and bucket instances
-const firebaseAuth = firebase.auth();
-const firebaseDb = firebase.firestore();
-const firebaseBucket = firebase.storage().bucket();
+const firebaseAuth = admin.auth();
+const firebaseDb = admin.firestore();
+const firebaseBucket = admin.storage().bucket();
 
 module.exports = { firebaseAuth, firebaseDb, firebaseBucket };

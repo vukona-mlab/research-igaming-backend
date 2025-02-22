@@ -4,6 +4,11 @@ const {
   firebaseBucket,
 } = require("../config/firebase");
 const jwt = require("jsonwebtoken");
+const passport = require("passport");
+const { OAuth2Client } = require('google-auth-library');
+
+// Initialize the OAuth2 client
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
 // Register user
 exports.register = async (req, res) => {
@@ -214,48 +219,103 @@ exports.update = async (req, res) => {
 };
 
 // Google Sign In
-exports.googleSignIn = async (req, res) => {
+exports.googleSignIn = async (req, res, next) => {
+  const { idToken } = req.body;
+  console.log('Received ID token:', idToken?.substring(0, 20) + '...'); 
+
   try {
-    const { idToken } = req.body;
+    // Verify the Google ID token first
+    const ticket = await client.verifyIdToken({
+      idToken: idToken,
+      audience: process.env.VITE_GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    
+    // Use email as unique identifier
+    const { email, name, picture, sub: googleId } = payload;
 
-    // Verify the Google ID token
-    const credential = await firebaseAuth.verifyIdToken(idToken);
-    const { uid, email, name, picture } = credential;
+    try {
+      // Try to get existing Firebase user
+      const userRecord = await firebaseAuth.getUserByEmail(email);
+      const uid = userRecord.uid;
+      
+      // Check if user exists in Firestore
+      const userDoc = await firebaseDb.collection("users").doc(uid).get();
 
-    // Check if user exists in Firestore
-    const userDoc = await firebaseDb.collection("users").doc(uid).get();
-
-    if (!userDoc.exists) {
-      // Create new user profile if doesn't exist
-      await firebaseDb
-        .collection("users")
-        .doc(uid)
-        .set({
+      if (!userDoc.exists) {
+        // Create user profile if it doesn't exist
+        await firebaseDb.collection("users").doc(uid).set({
           displayName: name || "",
           email: email,
           profilePicture: picture || "",
           roles: ["client"],
+          googleId: googleId,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign({ uid }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+
+      res.status(200).json({
+        message: "Google sign-in successful",
+        token: `Bearer ${token}`,
+        user: {
+          uid,
+          ...(userDoc.exists ? userDoc.data() : {}),
+        },
+      });
+
+    } catch (firebaseError) {
+      // User doesn't exist in Firebase, create new user
+      const newUserRecord = await firebaseAuth.createUser({
+        email: email,
+        displayName: name,
+        photoURL: picture,
+      });
+
+      // Create user profile in Firestore
+      await firebaseDb.collection("users").doc(newUserRecord.uid).set({
+        displayName: name || "",
+        email: email,
+        profilePicture: picture || "",
+        roles: ["client"],
+        googleId: googleId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Generate JWT token
+      const token = jwt.sign({ uid: newUserRecord.uid }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+
+      res.status(200).json({
+        message: "Google sign-in successful",
+        token: `Bearer ${token}`,
+        user: {
+          uid: newUserRecord.uid,
+          displayName: name,
+          email: email,
+          profilePicture: picture,
+          roles: ["client"],
+        },
+      });
     }
 
-    // Generate JWT token
-    const token = jwt.sign({ uid }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-
-    res.status(200).json({
-      message: "Google sign-in successful",
-      token: `Bearer ${token}`,
-      user: {
-        uid,
-        ...userDoc.data(),
-      },
-    });
   } catch (error) {
-    console.error("Google Sign-in Error:", error);
-    res.status(401).json({ error: "Invalid Google token" });
+    console.error("Detailed Google Sign-in Error:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    res.status(401).json({ 
+      error: "Invalid Google token",
+      details: error.message 
+    });
   }
 };
 
