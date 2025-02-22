@@ -31,6 +31,7 @@ exports.register = async (req, res) => {
         bio: "",
         yearsOfExperience: experience || "",
         jobInterest: jobInterest || "",
+        extraAmount: {},
         roles: roles || ["client"],
         files: {},
         createdAt: new Date(),
@@ -189,10 +190,10 @@ exports.update = async (req, res) => {
       updateObj.speciality = speciality;
     }
     if (category !== "" && typeof category !== "undefined") {
-      updateObj.category = category;
+      updateObj.category = JSON.parse(category);
     }
     if (extraAmount !== "" && typeof extraAmount !== "undefined") {
-      updateObj.extraAmount = extraAmount;
+      updateObj.extraAmount = JSON.parse(extraAmount);
     }
     if (jobTitle !== "" && typeof jobTitle !== "undefined") {
       updateObj.jobTitle = jobTitle;
