@@ -7,7 +7,8 @@ const jwt = require("jsonwebtoken");
 
 // Register user
 exports.register = async (req, res) => {
-  const { email, password, roles } = req.body;
+  const { email, password, jobTitle, experience, jobInterest, roles } =
+    req.body;
   try {
     // Create auth user
     const userRecord = await firebaseAuth.createUser({ email, password });
@@ -21,13 +22,15 @@ exports.register = async (req, res) => {
         name: "",
         surname: "",
         email: email,
-        jobTitle: "",
+        jobTitle: jobTitle || "",
         phoneNumber: "",
         profilePicture: "",
         dateOfBirth: "",
         specialities: [],
         categories: [],
         bio: "",
+        yearsOfExperience: experience || "",
+        jobInterest: jobInterest || "",
         roles: roles || ["client"],
         files: {},
         createdAt: new Date(),
