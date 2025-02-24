@@ -39,7 +39,7 @@ router.put(
   update
 );
 
-router.post("/resetPassword", resetPassword);
+router.post("/reset-password", resetPassword);
 
 router.delete(
   "/:id/delete",
