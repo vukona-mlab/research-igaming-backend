@@ -172,7 +172,7 @@ exports.update = async (req, res) => {
       updateObj.surname = surname;
     }
     if (displayName !== "" && typeof displayName !== "undefined") {
-      updateObj.surname = surname;
+      updateObj.displayName = displayName;
     }
     if (phoneNumber !== "" && typeof phoneNumber !== "undefined") {
       updateObj.phoneNumber = phoneNumber;
