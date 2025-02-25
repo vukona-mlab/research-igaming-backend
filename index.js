@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const authRoutes = require("./routes/authRouter");
+const serviceRoutes = require("./routes/servicesRouter");
 const freelancerRoutes = require("./routes/freelancerRoutes");
 const passport = require("passport");
 
@@ -19,6 +20,7 @@ app.use(passport.initialize());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", freelancerRoutes); // All routes under `/api/freelancers`
+app.use("/api/services", serviceRoutes);
 
 const PORT = process.env.PORT || 8000;
 
