@@ -1,13 +1,13 @@
 const passport = require("passport");
 const { ExtractJwt, Strategy: JwtStrategy } = require("passport-jwt");
-const { firebaseAuth } = require("./config/firebase"); // assuming firebaseAuth is set up in firebase.js
+const { firebaseAuth } = require("./config/firebase");
 const dotenv = require("dotenv");
 
 dotenv.config();
 
 const opts = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // Extract JWT token from Authorization header
-  secretOrKey: process.env.JWT_SECRET, // You can also use a public key if using RSA, but symmetric key is simpler for JWT
+  secretOrKey: process.env.JWT_SECRET,
 };
 
 passport.use(

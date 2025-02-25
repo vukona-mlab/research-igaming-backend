@@ -4,6 +4,7 @@ const cors = require("cors");
 const path = require("path");
 const authRoutes = require("./routes/authRouter");
 const freelancerRoutes = require("./routes/freelancerRoutes");
+const testimonialRoutes = require("./routes/testimonialRoutes");
 const passport = require("passport");
 
 const app = express();
@@ -18,7 +19,8 @@ app.use(passport.initialize());
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api", freelancerRoutes); // All routes under `/api/freelancers`
+app.use("/api", freelancerRoutes);
+app.use("/api", testimonialRoutes);
 
 const PORT = process.env.PORT || 8000;
 
