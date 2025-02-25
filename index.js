@@ -22,7 +22,6 @@ app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 app.use("/api", freelancerRoutes);
 app.use("/api", testimonialRoutes);
-app.use("/api", freelancerRoutes); // All routes under `/api/freelancers`
 app.use("/api/services", serviceRoutes);
 
 const PORT = process.env.PORT || 8000;
