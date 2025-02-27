@@ -5,7 +5,7 @@ const path = require("path");
 const authRoutes = require("./routes/authRouter");
 const freelancerRoutes = require("./routes/freelancerRoutes");
 const testimonialRoutes = require("./routes/testimonialRoutes");
-const chatsController = require("./routes/chatsRoutes");
+const chatsRoutes = require("./routes/chatsRoutes");
 const passport = require("passport");
 
 const app = express();
@@ -22,7 +22,7 @@ app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 app.use("/api", freelancerRoutes);
 app.use("/api", testimonialRoutes);
-app.use("/api", chatsController);
+app.use("/api", chatsRoutes);
 
 const PORT = process.env.PORT || 8000;
 
