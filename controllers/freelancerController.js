@@ -167,3 +167,31 @@ exports.createChat = async (req, res) => {
       .json({ error: "An error occurred while creating the chat" });
   }
 };
+
+//Delete chat
+
+// Delete chat by chatId
+exports.deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    // Reference to the chat document in Firestore
+    const chatRef = firebaseDb.collection("chats").doc(chatId);
+
+    // Check if the chat exists
+    const chatDoc = await chatRef.get();
+    if (!chatDoc.exists) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    // Delete the chat document
+    await chatRef.delete();
+
+    res.status(200).json({ message: "Chat deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting chat:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the chat" });
+  }
+};

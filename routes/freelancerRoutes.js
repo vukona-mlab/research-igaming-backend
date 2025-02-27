@@ -9,6 +9,9 @@ router.get("/freelancers/projects", freelancerController.getFreelancerProjects);
 router.get("/projects", freelancerController.getAllProjects);
 
 //route to create chats
-router.get("/create-chat", freelancerController.createChat);
+router.post("/create-chat", freelancerController.createChat);
+
+//route to delete a chat
+router.delete("delete-chat", freelancerController.deleteChat);
 
 module.exports = router;
