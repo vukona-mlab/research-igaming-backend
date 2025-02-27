@@ -222,7 +222,7 @@ exports.update = async (req, res) => {
 // Google Sign In
 exports.googleSignIn = async (req, res) => {
   try {
-    const { idToken } = req.body;
+    const { idToken, roles } = req.body;
 
     // Verify the Google ID token
     const credential = await firebaseAuth.verifyIdToken(idToken);
@@ -240,7 +240,7 @@ exports.googleSignIn = async (req, res) => {
           displayName: name || "",
           email: email,
           profilePicture: picture || "",
-          roles: ["client"],
+          roles: roles || ["client"],
           createdAt: new Date(),
           updatedAt: new Date(),
         });
