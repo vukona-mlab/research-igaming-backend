@@ -168,12 +168,11 @@ exports.createChat = async (req, res) => {
   }
 };
 
-//Delete chat
-
-// Delete chat by chatId
+//Delete chat BY chatId
 exports.deleteChat = async (req, res) => {
   try {
     const { chatId } = req.params;
+    const userId = req.user.id; // Assuming the user is authenticated with passport
 
     // Reference to the chat document in Firestore
     const chatRef = firebaseDb.collection("chats").doc(chatId);
@@ -182,6 +181,14 @@ exports.deleteChat = async (req, res) => {
     const chatDoc = await chatRef.get();
     if (!chatDoc.exists) {
       return res.status(404).json({ message: "Chat not found" });
+    }
+
+    // Check if the user is part of the chat (either freelancer or client)
+    const chatData = chatDoc.data();
+    if (!chatData.participants.includes(userId)) {
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to delete this chat" });
     }
 
     // Delete the chat document
@@ -193,5 +200,31 @@ exports.deleteChat = async (req, res) => {
     res
       .status(500)
       .json({ error: "An error occurred while deleting the chat" });
+  }
+};
+
+// View messages for a specific chat by chatId
+exports.viewMessages = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    // Reference to the chat document in Firestore
+    const chatRef = firebaseDb.collection("chats").doc(chatId);
+
+    // Fetch the chat document
+    const chatDoc = await chatRef.get();
+    if (!chatDoc.exists) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    // Get the messages from the chat document
+    const chatData = chatDoc.data();
+    const messages = chatData.messages || [];
+
+    // Return the messages
+    res.status(200).json({ messages });
+  } catch (error) {
+    console.error("Error viewing messages:", error);
+    res.status(500).json({ error: "An error occurred while viewing messages" });
   }
 };
