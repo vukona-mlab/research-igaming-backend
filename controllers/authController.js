@@ -141,11 +141,6 @@ exports.update = async (req, res) => {
       extraAmount,
       jobTitle,
     } = req.body;
-    console.log(
-      req.body.categories,
-      categories !== "" && typeof categories !== "undefined"
-    );
-    console.log(extraAmount !== "undefined");
 
     if (JSON.stringify(req.body) === "{}" && typeof req.file === "undefined") {
       res.status(500).json({ error: "Must have atleast one field to update" });
