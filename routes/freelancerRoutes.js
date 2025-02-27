@@ -8,4 +8,6 @@ router.get("/freelancers/projects", freelancerController.getFreelancerProjects);
 // Route to get all projects
 router.get("/projects", freelancerController.getAllProjects);
 
+router.get("/freelancers", freelancerController.getFreelancers);
+
 module.exports = router;
