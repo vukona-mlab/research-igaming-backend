@@ -8,4 +8,7 @@ router.get("/freelancers/projects", freelancerController.getFreelancerProjects);
 // Route to get all projects
 router.get("/projects", freelancerController.getAllProjects);
 
+//route to create chats
+router.get("/create-chat", freelancerController.createChat);
+
 module.exports = router;

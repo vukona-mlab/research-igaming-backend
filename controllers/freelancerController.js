@@ -1,4 +1,5 @@
 const { firebaseDb } = require("../config/firebase");
+const moment = require("moment");
 
 // Get all users with the "freelancer" role
 exports.getFreelancers = async (req, res) => {
@@ -96,5 +97,73 @@ exports.getAllProjects = async (req, res) => {
     res
       .status(500)
       .json({ error: "An error occurred while fetching projects" });
+  }
+};
+
+// Create or update chat with messages
+exports.createChat = async (req, res) => {
+  try {
+    const { freelancerId, clientId, senderId, message } = req.body;
+
+    if (!freelancerId || !clientId || !senderId || !message) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Check if a chat already exists between the freelancer and the client
+    const chatQuery = await firebaseDb
+      .collection("chats")
+      .where("participants", "array-contains", freelancerId)
+      .get();
+
+    let chatDoc = null;
+
+    chatQuery.forEach((doc) => {
+      const data = doc.data();
+      if (data.participants.includes(clientId)) {
+        chatDoc = doc;
+      }
+    });
+
+    if (chatDoc) {
+      // Chat exists, update messages
+      await firebaseDb
+        .collection("chats")
+        .doc(chatDoc.id)
+        .update({
+          messages: firebaseDb.FieldValue.arrayUnion({
+            senderId,
+            message,
+            timestamp: moment().format("ddd, h:mm A"),
+          }),
+          updatedAt: new Date(),
+        });
+
+      return res
+        .status(200)
+        .json({ chatId: chatDoc.id, message: "Message sent" });
+    } else {
+      // Create new chat
+      const newChat = await firebaseDb.collection("chats").add({
+        participants: [freelancerId, clientId],
+        messages: [
+          {
+            senderId,
+            message,
+            timestamp: moment().format("ddd, h:mm A"),
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      return res
+        .status(201)
+        .json({ chatId: newChat.id, message: "Chat created and message sent" });
+    }
+  } catch (error) {
+    console.error("Error creating/updating chat:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while creating the chat" });
   }
 };
