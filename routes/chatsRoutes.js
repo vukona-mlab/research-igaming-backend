@@ -4,7 +4,15 @@ const chatsController = require("../controllers/chatsController");
 const passport = require("passport");
 
 //route to create chats
-router.post("/create-chat", chatsController.createChat);
+router.post(
+  "/create-chat",
+  passport.authenticate("jwt", { session: false }),
+  (req, res, next) => {
+    console.log('Auth middleware passed, user:', req.user);
+    next();
+  },
+  chatsController.createChat
+);
 
 //route to delete a chat
 router.delete(
