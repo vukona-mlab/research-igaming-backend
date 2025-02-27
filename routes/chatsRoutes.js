@@ -15,5 +15,10 @@ router.delete(
 
 // View messages route
 router.get("/chats/:chatId/messages", chatsController.viewMessages);
+router.get(
+  "/chats/:freelancerId/allChats",
+  chatsController.getFreelancersChats
+);
+router.post("/freelancer/create-chat", chatsController.createChatFreelancer);
 
 module.exports = router;
