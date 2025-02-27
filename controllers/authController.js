@@ -137,10 +137,11 @@ exports.update = async (req, res) => {
       dateOfBirth,
       bio,
       speciality,
-      category,
+      categories,
       extraAmount,
       jobTitle,
     } = req.body;
+
     if (JSON.stringify(req.body) === "{}" && typeof req.file === "undefined") {
       res.status(500).json({ error: "Must have atleast one field to update" });
     }
@@ -172,7 +173,7 @@ exports.update = async (req, res) => {
       updateObj.surname = surname;
     }
     if (displayName !== "" && typeof displayName !== "undefined") {
-      updateObj.surname = surname;
+      updateObj.displayName = displayName;
     }
     if (phoneNumber !== "" && typeof phoneNumber !== "undefined") {
       updateObj.phoneNumber = phoneNumber;
@@ -187,10 +188,11 @@ exports.update = async (req, res) => {
       updateObj.bio = bio;
     }
     if (speciality !== "" && typeof speciality !== "undefined") {
-      updateObj.speciality = speciality;
+      updateObj.specialities = JSON.parse(speciality);
     }
-    if (category !== "" && typeof category !== "undefined") {
-      updateObj.category = JSON.parse(category);
+    if (categories !== "" && typeof categories !== "undefined") {
+      console.log("running c");
+      updateObj.categories = JSON.parse(categories);
     }
     if (extraAmount !== "" && typeof extraAmount !== "undefined") {
       updateObj.extraAmount = JSON.parse(extraAmount);
@@ -220,7 +222,7 @@ exports.update = async (req, res) => {
 // Google Sign In
 exports.googleSignIn = async (req, res) => {
   try {
-    const { idToken } = req.body;
+    const { idToken, roles } = req.body;
 
     // Verify the Google ID token
     const credential = await firebaseAuth.verifyIdToken(idToken);
@@ -238,7 +240,7 @@ exports.googleSignIn = async (req, res) => {
           displayName: name || "",
           email: email,
           profilePicture: picture || "",
-          roles: ["client"],
+          roles: roles || ["client"],
           createdAt: new Date(),
           updatedAt: new Date(),
         });
