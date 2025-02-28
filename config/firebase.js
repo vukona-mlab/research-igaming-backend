@@ -28,4 +28,6 @@ const firebaseAuth = firebase.auth();
 const firebaseDb = firebase.firestore();
 const firebaseBucket = firebase.storage().bucket();
 
-module.exports = { firebaseAuth, firebaseDb, firebaseBucket };
+const FieldValue = firebase.firestore.FieldValue;
+
+module.exports = { firebaseAuth, firebaseDb, firebaseBucket, FieldValue };
