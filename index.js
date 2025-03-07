@@ -24,7 +24,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api", freelancerRoutes);
 app.use("/api", testimonialRoutes);
 app.use("/api/services", serviceRoutes);
-app.use("/api", chatsController);
 app.use("/api", chatsRoutes);
 
 const PORT = process.env.PORT || 8000;
