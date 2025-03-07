@@ -41,9 +41,10 @@ exports.getFreelancerProjects = async (req, res) => {
       return res.status(404).json({ message: "No freelancers found" });
     }
 
-    // Step 2: Extract freelancer IDs
+    // Step 2: Extract freelancer data and ensure uid is included
     const freelancers = freelancersSnapshot.docs.map((doc) => ({
       id: doc.id,
+      uid: doc.id,
       ...doc.data(),
     }));
     const freelancerIds = freelancers.map((f) => f.id);
@@ -59,9 +60,10 @@ exports.getFreelancerProjects = async (req, res) => {
       ...doc.data(),
     }));
 
-    // Step 4: Attach projects to respective freelancers
+    // Step 4: Attach projects to respective freelancers and ensure uid is present
     const result = freelancers.map((freelancer) => ({
       ...freelancer,
+      uid: freelancer.id,
       projects: projects.filter(
         (project) => project.freelancerId === freelancer.id
       ),
@@ -69,10 +71,10 @@ exports.getFreelancerProjects = async (req, res) => {
 
     res.status(200).json({ freelancers: result });
   } catch (error) {
-    console.error("Error fetching freelancer projects:", error);
+    console.error("Error fetching freelancers:", error);
     res
       .status(500)
-      .json({ error: "An error occurred while fetching freelancer projects" });
+      .json({ error: "An error occurred while fetching freelancers" });
   }
 };
 

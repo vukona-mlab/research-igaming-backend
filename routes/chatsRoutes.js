@@ -3,8 +3,33 @@ const router = express.Router();
 const chatsController = require("../controllers/chatsController");
 const passport = require("passport");
 
-//route to create chats
-router.post("/create-chat", chatsController.createChat);
+// Get all chats for the authenticated user
+router.get(
+  "/chats",
+  passport.authenticate("jwt", { session: false }),
+  chatsController.getUserChats
+);
+
+// Create new chat
+router.post(
+  "/create-chat",
+  passport.authenticate("jwt", { session: false }),
+  chatsController.createChat
+);
+
+// Get messages for a specific chat
+router.get(
+  "/chats/:chatId/messages",
+  passport.authenticate("jwt", { session: false }),
+  chatsController.viewMessages
+);
+
+// Send a message in a chat
+router.post(
+  "/chats/:chatId/messages",
+  passport.authenticate("jwt", { session: false }),
+  chatsController.sendMessage
+);
 
 //route to delete a chat
 router.delete(
@@ -13,12 +38,11 @@ router.delete(
   chatsController.deleteChat
 );
 
-// View messages route
-router.get("/chats/:chatId/messages", chatsController.viewMessages);
+// Get a single chat
 router.get(
-  "/chats/:freelancerId/allChats",
-  chatsController.getFreelancersChats
+  "/chats/:chatId",
+  passport.authenticate("jwt", { session: false }),
+  chatsController.getChat
 );
-router.post("/freelancer/create-chat", chatsController.createChatFreelancer);
 
 module.exports = router;

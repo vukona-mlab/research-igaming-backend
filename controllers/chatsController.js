@@ -5,65 +5,59 @@ const moment = require("moment");
 exports.createChat = async (req, res) => {
   try {
     const { freelancerId, clientId, senderId, message } = req.body;
+    const timestamp = new Date();
 
-    if (!freelancerId || !clientId || !senderId || !message) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!freelancerId || !clientId || !senderId) {
+      return res.status(400).json({
+        error: "Missing required fields",
+      });
     }
 
-    // Check if a chat already exists between the freelancer and the client
-    const chatQuery = await firebaseDb
+    // Check if chat exists
+    const existingChats = await firebaseDb
       .collection("chats")
       .where("participants", "array-contains", freelancerId)
       .get();
 
-    let chatDoc = null;
-
-    chatQuery.forEach((doc) => {
+    let existingChat = null;
+    existingChats.forEach((doc) => {
       const data = doc.data();
       if (data.participants.includes(clientId)) {
-        chatDoc = doc;
+        existingChat = { id: doc.id, ...data };
       }
     });
     console.log({ chatDoc });
 
-    if (chatDoc) {
-      // Chat exists, update messages
-      await firebaseDb
-        .collection("chats")
-        .doc(chatDoc.id)
-        .update({
-          messages: firebaseDb.FieldValue.arrayUnion({
-            senderId,
-            message,
-            timestamp: moment().format("ddd, h:mm A"),
-          }),
-          updatedAt: new Date(),
-        });
-
-      return res
-        .status(200)
-        .json({ chatId: chatDoc.id, message: "Message sent" });
-    } else {
-      // Create new chat
-      const newChat = await firebaseDb.collection("chats").add({
-        participants: [freelancerId, clientId],
-        messages: [
-          {
-            senderId,
-            message,
-            timestamp: moment().format("ddd, h:mm A"),
-          },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    if (existingChat) {
+      return res.status(200).json({
+        chatId: existingChat.id,
+        message: "Existing chat found",
       });
-
-      return res
-        .status(201)
-        .json({ chatId: newChat.id, message: "Chat created and message sent" });
     }
+
+    // Create new chat with messages array
+    const newChat = await firebaseDb.collection("chats").add({
+      participants: [freelancerId, clientId],
+      messages: [
+        {
+          id: Date.now().toString(),
+          text: message || "Chat started",
+          senderId: senderId,
+          createdAt: timestamp,
+          type: "text",
+        },
+      ],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastMessage: message || "Chat started",
+    });
+
+    return res.status(201).json({
+      chatId: newChat.id,
+      message: "Chat created successfully",
+    });
   } catch (error) {
-    console.error("Error creating/updating chat:", error);
+    console.error("Error creating chat:", error);
     res
       .status(500)
       .json({ error: "An error occurred while creating the chat" });
@@ -131,115 +125,168 @@ exports.viewMessages = async (req, res) => {
   }
 };
 
-exports.getFreelancersChats = async (req, res) => {
+// Add this new method to get user chats
+exports.getUserChats = async (req, res) => {
   try {
-    const { freelancerId } = req.params;
-    const chatQuery = await firebaseDb
+    const userId = req.user.uid;
+    console.log("Fetching chats for user:", userId);
+
+    const chatsSnapshot = await firebaseDb
       .collection("chats")
-      .where("participants", "array-contains", freelancerId)
+      .where("participants", "array-contains", userId)
       .get();
 
-    // Get the messages from the chat document
-    // const chatData = chatQuery.data();
-    let chats = [];
+    if (chatsSnapshot.empty) {
+      return res.status(200).json({ chats: [] });
+    }
 
-    chatQuery.forEach(async (doc) => {
-      const data = doc.data();
-      //get participant
+    const chats = [];
+    for (const doc of chatsSnapshot.docs) {
+      const chatData = doc.data();
+      const otherParticipantId = chatData.participants.find(
+        (id) => id !== userId
+      );
 
-      const [otherUser] = data.participants.filter((id) => id !== freelancerId);
+      // Get other participant's data
+      const userDoc = await firebaseDb
+        .collection("users")
+        .doc(otherParticipantId)
+        .get();
 
-      chats = [...chats, { id: doc.id, data, otherId: otherUser }];
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        chats.push({
+          id: doc.id,
+          ...chatData,
+          participants: [
+            {
+              uid: userId,
+            },
+            {
+              uid: otherParticipantId,
+              name: userData.displayName || "Anonymous",
+              photoURL: userData.profilePicture || null,
+              email: userData.email,
+            },
+          ],
+          lastMessage: chatData.lastMessage || "",
+          updatedAt: chatData.updatedAt || chatData.createdAt,
+        });
+      }
+    }
+
+    // Sort chats by updatedAt timestamp
+    chats.sort((a, b) => {
+      return (b?.updatedAt?.toDate() || 0) - (a?.updatedAt?.toDate() || 0);
     });
 
-    const updatedChats = await Promise.all(
-      chats.map(async (obj) => {
-        const userDoc = await firebaseDb
-          .collection("users")
-          .doc(obj.otherId)
-          .get();
-
-        const userInfo = userDoc.data();
-        return {
-          chatId: obj.id,
-          lastMessage: obj.data.lastMessage,
-          timestamp: obj.data.updatedAt,
-          name: userInfo.displayName,
-          otherId: obj.otherId,
-        };
-      })
-    );
-
-    // Return the messages
-    res.status(200).json({ chats: updatedChats });
+    res.status(200).json({ chats });
   } catch (error) {
-    console.error("Error viewing messages:", error);
-    res.status(500).json({ error: "An error occurred while viewing messages" });
+    console.error("Error getting user chats:", error);
+    res.status(500).json({ error: "An error occurred while fetching chats" });
   }
 };
-exports.createChatFreelancer = async (req, res) => {
-  try {
-    const { freelancerId, clientId, senderId, message } = req.body;
 
-    if (!freelancerId || !clientId || !senderId || !message) {
-      return res.status(400).json({ error: "Missing required fields" });
+// Add this new method for sending messages
+exports.sendMessage = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { message, senderId, attachments } = req.body;
+    const timestamp = new Date();
+
+    // Get the chat document
+    const chatRef = firebaseDb.collection("chats").doc(chatId);
+    const chatDoc = await chatRef.get();
+
+    if (!chatDoc.exists) {
+      return res.status(404).json({ error: "Chat not found" });
     }
 
-    // Check if a chat already exists between the freelancer and the client
-    const chatQuery = await firebaseDb
-      .collection("chats")
-      .where("participants", "array-contains", freelancerId)
-      .get();
+    // Verify sender is a participant
+    const chatData = chatDoc.data();
+    if (!chatData.participants.includes(senderId)) {
+      return res
+        .status(403)
+        .json({ error: "User is not a participant in this chat" });
+    }
 
-    let chatDoc = null;
+    // Create new message
+    const newMessage = {
+      text: message,
+      senderId,
+      createdAt: timestamp,
+      attachments: attachments || [],
+      type: "text",
+    };
 
-    chatQuery.forEach((doc) => {
-      const data = doc.data();
-      if (data.participants.includes(clientId)) {
-        chatDoc = doc;
-      }
+    // Update the chat document
+    await chatRef.update({
+      messages: [...chatData.messages, newMessage],
+      lastMessage: message,
+      updatedAt: timestamp,
     });
 
-    if (chatDoc) {
-      // Chat exists, update messages
-      await firebaseDb
-        .collection("chats")
-        .doc(chatDoc.id)
-        .update({
-          messages: FieldValue.arrayUnion({
-            senderId,
-            message,
-            timestamp: moment().format("ddd, h:mm A"),
-          }),
-          updatedAt: new Date(),
-        });
-
-      return res
-        .status(200)
-        .json({ chatId: chatDoc.id, message: "Message sent" });
-    } else {
-      // Create new chat
-      const newChat = await firebaseDb.collection("chats").add({
-        participants: [freelancerId, clientId],
-        messages: [
-          {
-            senderId,
-            message,
-            timestamp: moment().format("ddd, h:mm A"),
-          },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      return res
-        .status(201)
-        .json({ chatId: newChat.id, message: "Chat created and message sent" });
-    }
+    res
+      .status(200)
+      .json({ message: "Message sent successfully", messageData: newMessage });
   } catch (error) {
-    console.error("Error creating/updating chat:", error);
+    console.error("Error sending message:", error);
     res
       .status(500)
-      .json({ error: "An error occurred while creating the chat" });
+      .json({ error: "An error occurred while sending the message" });
+  }
+};
+
+// Add this new method to get a single chat
+exports.getChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.uid;
+
+    const chatRef = firebaseDb.collection("chats").doc(chatId);
+    const chatDoc = await chatRef.get();
+
+    if (!chatDoc.exists) {
+      return res.status(404).json({ error: "Chat not found" });
+    }
+
+    const chatData = chatDoc.data();
+
+    // Verify user is a participant
+    if (!chatData.participants.includes(userId)) {
+      return res
+        .status(403)
+        .json({ error: "User is not a participant in this chat" });
+    }
+
+    // Get other participant's data
+    const otherParticipantId = chatData.participants.find(
+      (id) => id !== userId
+    );
+    const userDoc = await firebaseDb
+      .collection("users")
+      .doc(otherParticipantId)
+      .get();
+
+    const chat = {
+      id: chatDoc.id,
+      ...chatData,
+      participants: [
+        { uid: userId },
+        {
+          uid: otherParticipantId,
+          name: userDoc.data()?.displayName || "Anonymous",
+          photoURL: userDoc.data()?.profilePicture || null,
+          email: userDoc.data()?.email,
+        },
+      ],
+    };
+
+    res.status(200).json({ chat });
+  } catch (error) {
+    console.error("Error getting chat:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching the chat" });
   }
 };
