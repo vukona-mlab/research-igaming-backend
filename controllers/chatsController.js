@@ -33,10 +33,11 @@ exports.createChat = async (req, res) => {
       });
     }
 
-    // Create new chat
+    // Create new chat with messages array
     const newChat = await firebaseDb.collection("chats").add({
       participants: [freelancerId, clientId],
       messages: [{
+        id: Date.now().toString(),
         text: message || "Chat started",
         senderId: senderId,
         createdAt: timestamp,
