@@ -11,6 +11,8 @@ const chatsRoutes = require("./routes/chatsRoutes");
 const { firebaseDb } = require("./config/firebase");
 
 const passport = require("passport");
+const projectRoutes = require("./routes/projectRoutes");
+const cardRoutes = require("./routes/cardRoutes");
 const socketIo = require("socket.io");
 const http = require("http");
 
@@ -60,6 +62,8 @@ app.use("/api", freelancerRoutes);
 app.use("/api", testimonialRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api", chatsRoutes);
+app.use("/api", projectRoutes);
+app.use("/api", cardRoutes);
 
 const PORT = process.env.PORT || 8000;
 
