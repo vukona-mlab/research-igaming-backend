@@ -9,6 +9,7 @@ const testimonialRoutes = require("./routes/testimonialRoutes");
 const chatsRoutes = require("./routes/chatsRoutes");
 const passport = require("passport");
 const cardRoutes = require('./routes/cardRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 app.use(cors());
@@ -27,6 +28,7 @@ app.use("/api", testimonialRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api", chatsRoutes);
 app.use('/api', cardRoutes);
+app.use('/api', paymentRoutes);
 
 const PORT = process.env.PORT || 8000;
 
