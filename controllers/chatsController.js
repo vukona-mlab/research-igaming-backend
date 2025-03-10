@@ -26,7 +26,6 @@ exports.createChat = async (req, res) => {
         existingChat = { id: doc.id, ...data };
       }
     });
-    console.log({ chatDoc });
 
     if (existingChat) {
       return res.status(200).json({
