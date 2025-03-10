@@ -45,9 +45,7 @@ io.on("connection", function (socket) {
         uid: data.uid,
         activeStatus: data.activeStatus,
       });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
+    } catch (error) {}
   });
 });
 // Serve static files from the public directory
