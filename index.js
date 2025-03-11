@@ -15,6 +15,7 @@ const projectRoutes = require("./routes/projectRoutes");
 const cardRoutes = require("./routes/cardRoutes");
 const socketIo = require("socket.io");
 const http = require("http");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
 app.use(cors());
@@ -64,6 +65,7 @@ app.use("/api/services", serviceRoutes);
 app.use("/api", chatsRoutes);
 app.use("/api", projectRoutes);
 app.use("/api", cardRoutes);
+app.use("/api", paymentRoutes);
 
 const PORT = process.env.PORT || 8000;
 
