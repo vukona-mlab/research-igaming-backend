@@ -36,6 +36,8 @@ exports.register = async (req, res) => {
         files: {},
         createdAt: new Date(),
         updatedAt: new Date(),
+        activeStatus: false,
+        lastSeen: new Date(),
       });
 
     res.status(201).json({
@@ -99,6 +101,12 @@ exports.login = async (req, res) => {
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User profile not found" });
     }
+    //update active status
+    await firebaseDb.collection("users").doc(userRecord.uid).update({
+      activeStatus: true,
+      updatedAt: new Date(),
+      lastSeen: new Date(),
+    });
 
     // Generate JWT token
     const payload = { uid: userRecord.uid };
@@ -243,8 +251,16 @@ exports.googleSignIn = async (req, res) => {
           roles: roles || ["client"],
           createdAt: new Date(),
           updatedAt: new Date(),
+          activeStatus: false,
+          lastSeen: new Date(),
         });
     }
+    //update active status
+    await firebaseDb.collection("users").doc(uid).update({
+      activeStatus: true,
+      updatedAt: new Date(),
+      lastSeen: new Date(),
+    });
 
     // Generate JWT token
     const token = jwt.sign({ uid }, process.env.JWT_SECRET, {

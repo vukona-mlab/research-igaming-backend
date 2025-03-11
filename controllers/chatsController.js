@@ -166,6 +166,8 @@ exports.getUserChats = async (req, res) => {
               name: userData.displayName || "Anonymous",
               photoURL: userData.profilePicture || null,
               email: userData.email,
+              activeStatus: userData.activeStatus || false,
+              lastSeen: userData.lastSeen || new Date(),
             },
           ],
           lastMessage: chatData.lastMessage || "",
