@@ -2,11 +2,26 @@ const { firebaseDb } = require("../config/firebase");
 const paypal = require('@paypal/checkout-server-sdk');
 const { v4: uuidv4 } = require('uuid');
 const { FieldValue } = require('firebase-admin/firestore');
+const escrowController = require('./escrowController');
 
-// PayPal configuration
+// PayPal configuration with validation
+if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+  console.error('PayPal credentials are missing in environment variables');
+  throw new Error('PayPal configuration is incomplete');
+}
+
+console.log('Initializing PayPal with environment:', process.env.NODE_ENV);
+
 const environment = process.env.NODE_ENV === 'production'
-  ? new paypal.core.LiveEnvironment(process.env.PAYPAL_CLIENT_ID, process.env.PAYPAL_CLIENT_SECRET)
-  : new paypal.core.SandboxEnvironment(process.env.PAYPAL_CLIENT_ID, process.env.PAYPAL_CLIENT_SECRET);
+  ? new paypal.core.LiveEnvironment(
+      process.env.PAYPAL_CLIENT_ID,
+      process.env.PAYPAL_CLIENT_SECRET
+    )
+  : new paypal.core.SandboxEnvironment(
+      process.env.PAYPAL_CLIENT_ID,
+      process.env.PAYPAL_CLIENT_SECRET
+    );
+
 const client = new paypal.core.PayPalHttpClient(environment);
 
 // Process payment with stored card
@@ -210,10 +225,24 @@ exports.capturePayment = async (req, res) => {
 // Create PayPal order with card payment
 exports.createOrder = async (req, res) => {
   try {
-    const { amount, cardId, newCard, projectId, freelancerId } = req.body;
-    const clientId = req.user.uid; // This is the client making the payment
+    const { amount, cardId, projectId, freelancerId, escrowId } = req.body;
+    const clientId = req.user.uid;
     const localCurrency = 'ZAR';
     const paypalCurrency = 'USD';
+
+    console.log('Creating PayPal order:', {
+      amount,
+      projectId,
+      freelancerId,
+      escrowId,
+      clientId
+    });
+
+    // Validate PayPal client
+    if (!client) {
+      console.error('PayPal client not initialized');
+      return res.status(500).json({ error: "Payment service not available" });
+    }
 
     // Validate required fields
     if (!amount || !projectId || !freelancerId) {
@@ -276,18 +305,8 @@ exports.createOrder = async (req, res) => {
       if (card.userId !== clientId) {
         return res.status(403).json({ error: "Not authorized to use this card" });
       }
-    } else if (newCard) {
-      if (!newCard.number || !newCard.expiryDate || !newCard.cardHolderName) {
-        return res.status(400).json({ error: "Invalid card details" });
-      }
-
-      card = {
-        maskedCardNumber: `****-****-****-${newCard.number.slice(-4)}`,
-        cardHolderName: newCard.cardHolderName,
-        expiryDate: newCard.expiryDate
-      };
     } else {
-      return res.status(400).json({ error: "Either cardId or newCard details are required" });
+      return res.status(400).json({ error: "cardId is required" });
     }
 
     const request = new paypal.orders.OrdersCreateRequest();
@@ -297,6 +316,14 @@ exports.createOrder = async (req, res) => {
       'prefer': 'return=representation'
     };
 
+    console.log('PayPal request body:', {
+      intent: 'CAPTURE',
+      amount: usdAmount,
+      currency: paypalCurrency,
+      description: `Payment for Project: ${project.title || projectId}`
+    });
+
+    // Create order request
     request.requestBody({
       intent: 'CAPTURE',
       purchase_units: [{
@@ -305,23 +332,11 @@ exports.createOrder = async (req, res) => {
           value: usdAmount
         },
         description: `Payment for Project: ${project.title || projectId}`
-      }],
-      payment_source: {
-        card: {
-          last_digits: card.maskedCardNumber.slice(-4),
-          name: card.cardHolderName,
-          billing_address: {
-            address_line_1: '123 Main St',
-            admin_area_2: 'City',
-            admin_area_1: 'State',
-            postal_code: '12345',
-            country_code: 'ZA'
-          }
-        }
-      }
+      }]
     });
 
     const order = await client.execute(request);
+    console.log('PayPal order created:', order.result.id);
 
     // Store transaction with project and user details
     await firebaseDb
@@ -331,7 +346,8 @@ exports.createOrder = async (req, res) => {
       .doc(order.result.id)
       .set({
         orderId: order.result.id,
-        projectId: projectId,
+        projectId,
+        escrowId,
         projectTitle: project.title,
         clientId: clientId,
         freelancerId: freelancerId,
@@ -363,11 +379,26 @@ exports.createOrder = async (req, res) => {
         updatedAt: new Date()
       });
 
+    // If this is an escrow payment, update escrow status
+    if (escrowId) {
+      await firebaseDb.collection("escrow").doc(escrowId).update({
+        status: 'processing',
+        paymentOrderId: order.result.id,
+        updatedAt: new Date(),
+        transactions: FieldValue.arrayUnion({
+          type: 'payment_initiated',
+          orderId: order.result.id,
+          amount: amount,
+          timestamp: new Date()
+        })
+      });
+    }
+
     res.status(200).json({
       success: true,
       orderId: order.result.id,
       status: order.result.status,
-      projectId: projectId,
+      projectId,
       projectTitle: project.title,
       clientId: clientId,
       freelancerId: freelancerId,
@@ -381,10 +412,15 @@ exports.createOrder = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating payment order:', error);
-    res.status(500).json({ 
+    console.error("Error creating payment order:", {
+      message: error.message,
+      details: error.details || error,
+      statusCode: error.statusCode
+    });
+
+    return res.status(500).json({ 
       error: "Failed to create payment order",
-      details: error.message 
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -445,6 +481,26 @@ exports.handlePayPalReturn = async (req, res) => {
         updatedAt: new Date()
       });
 
+    // If this was an escrow payment, update escrow status
+    if (transaction.escrowId) {
+      await firebaseDb.collection("escrow").doc(transaction.escrowId).update({
+        status: 'funded',
+        updatedAt: new Date(),
+        transactions: FieldValue.arrayUnion({
+          type: 'payment_completed',
+          orderId: token,
+          captureId: capture.result.purchase_units[0].payments.captures[0].id,
+          timestamp: new Date()
+        })
+      });
+
+      // Update project status
+      await firebaseDb.collection("projects").doc(transaction.projectId).update({
+        status: 'active',
+        updatedAt: new Date()
+      });
+    }
+
     // Redirect to success page or return success response
     res.status(200).json({
       success: true,
@@ -455,10 +511,7 @@ exports.handlePayPalReturn = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error handling PayPal return:', error);
-    res.status(500).json({
-      error: "Failed to process payment",
-      details: error.message
-    });
+    console.error("Error handling PayPal return:", error);
+    res.status(500).json({ error: "Failed to process payment" });
   }
 }; 

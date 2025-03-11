@@ -47,14 +47,50 @@ const isValidCardHolderName = (name) => {
   return regex.test(name);
 };
 
+// Get card type based on card number
+const getCardType = (cardNumber) => {
+  const firstDigits = cardNumber.substring(0, 2);
+  if (cardNumber.startsWith('4')) {
+    return { type: 'VISA', paypalType: 'VISA' };
+  } else if (['51', '52', '53', '54', '55'].includes(firstDigits)) {
+    return { type: 'MasterCard', paypalType: 'MASTERCARD' };
+  } else if (['34', '37'].includes(firstDigits)) {
+    return { type: 'American Express', paypalType: 'AMEX' };
+  }
+  return { type: 'Unknown', paypalType: 'UNKNOWN' };
+};
+
 exports.addCard = async (req, res) => {
   try {
     const userId = req.user.uid;
-    const { cardNumber, expiryDate, cardHolderName } = req.body;
+    console.log('Adding card for user:', userId); // Debug log
 
-    // Enhanced validation
-    if (!cardNumber || !expiryDate || !cardHolderName) {
-      return res.status(400).json({ error: "All fields are required" });
+    const { 
+      cardNumber, 
+      expiryDate, 
+      cardHolderName,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      postalCode,
+      countryCode = 'ZA'
+    } = req.body;
+
+    console.log('Received card data:', { 
+      cardNumber: '*'.repeat(cardNumber.length-4) + cardNumber.slice(-4),
+      expiryDate,
+      cardHolderName,
+      // Log other non-sensitive fields
+    });
+
+    // Validate required fields
+    if (!cardNumber || !expiryDate || !cardHolderName || !addressLine1 || !city || !state || !postalCode) {
+      console.log('Missing required fields'); // Debug log
+      return res.status(400).json({ 
+        error: "Missing required fields",
+        required: ["cardNumber", "expiryDate", "cardHolderName", "addressLine1", "city", "state", "postalCode"]
+      });
     }
 
     // Validate card number using Luhn algorithm
@@ -67,41 +103,44 @@ exports.addCard = async (req, res) => {
       return res.status(400).json({ error: "Invalid or expired card date" });
     }
 
-    // Validate card holder name
-    if (!isValidCardHolderName(cardHolderName)) {
-      return res.status(400).json({ error: "Invalid card holder name" });
-    }
-
-    // Detect card type based on first digits
-    let cardType = "Unknown";
-    const firstDigits = cardNumber.substring(0, 2);
-    if (cardNumber.startsWith('4')) {
-      cardType = 'Visa';
-    } else if (['51', '52', '53', '54', '55'].includes(firstDigits)) {
-      cardType = 'MasterCard';
-    } else if (['34', '37'].includes(firstDigits)) {
-      cardType = 'American Express';
-    }
-
+    // Get card type
+    const { type, paypalType } = getCardType(cardNumber);
+    
     // Mask card number (store only last 4 digits)
     const maskedCardNumber = `****-****-****-${cardNumber.slice(-4)}`;
+    const lastFourDigits = cardNumber.slice(-4);
 
     const newCard = {
-      userId,
-      cardHolderName,
+      userId, // Important: Add userId to the card document
       maskedCardNumber,
+      lastFourDigits,
+      cardHolderName,
       expiryDate,
-      cardType,
+      cardType: type,
+      paypalCardType: paypalType,
+      billingAddress: {
+        addressLine1,
+        addressLine2: addressLine2 || '',
+        adminArea2: city,
+        adminArea1: state,
+        postalCode,
+        countryCode
+      },
       createdAt: new Date(),
       updatedAt: new Date()
     };
+
+    console.log('Saving card with data:', {
+      ...newCard,
+      maskedCardNumber: '****-****-****-' + lastFourDigits
+    });
 
     // Check if user already has this card stored
     const existingCards = await firebaseDb
       .collection('users')
       .doc(userId)
       .collection('cards')
-      .where('maskedCardNumber', '==', maskedCardNumber)
+      .where('lastFourDigits', '==', cardNumber.slice(-4))
       .get();
 
     if (!existingCards.empty) {
@@ -115,6 +154,8 @@ exports.addCard = async (req, res) => {
       .collection('cards')
       .add(newCard);
 
+    console.log('Card saved successfully with ID:', cardRef.id); // Debug log
+
     res.status(201).json({ 
       message: "Card added successfully",
       card: {
@@ -124,6 +165,7 @@ exports.addCard = async (req, res) => {
     });
   } catch (error) {
     console.error("Error adding card:", error);
+    console.error("Error details:", error.message); // Additional error details
     res.status(500).json({ error: "Failed to add card" });
   }
 };
@@ -136,7 +178,6 @@ exports.getCards = async (req, res) => {
       .collection('users')
       .doc(userId)
       .collection('cards')
-      .where('userId', '==', userId)
       .get();
 
     const cards = cardsSnapshot.docs.map(doc => ({

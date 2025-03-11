@@ -25,10 +25,10 @@ exports.createProject = async (req, res) => {
       budget,
       deadline,
       clientId,
-      freelancerId: freelancerId || null, // Optional at creation
+      freelancerId: freelancerId || null,
       category,
       requirements: requirements || [],
-      status: "pending", // pending, active, completed, cancelled
+      status: "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
       milestones: [],
@@ -37,9 +37,28 @@ exports.createProject = async (req, res) => {
         client: null,
         freelancer: null,
       },
+      escrowId: null,
+      paymentStatus: 'pending'
     };
 
     const projectRef = await firebaseDb.collection("projects").add(newProject);
+
+    if (freelancerId) {
+      const escrowAccount = {
+        projectId: projectRef.id,
+        clientId,
+        freelancerId,
+        amount: budget,
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        transactions: []
+      };
+
+      const escrowRef = await firebaseDb.collection("escrow").add(escrowAccount);
+      await projectRef.update({ escrowId: escrowRef.id });
+      newProject.escrowId = escrowRef.id;
+    }
 
     res.status(201).json({
       message: "Project created successfully",
