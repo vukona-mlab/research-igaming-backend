@@ -32,6 +32,7 @@ exports.register = async (req, res) => {
         yearsOfExperience: experience || "",
         jobInterest: jobInterest || "",
         extraAmount: {},
+        packages: {},
         roles: roles || ["client"],
         files: {},
         createdAt: new Date(),
@@ -146,7 +147,7 @@ exports.update = async (req, res) => {
       bio,
       speciality,
       categories,
-      extraAmount,
+      packages,
       jobTitle,
     } = req.body;
 
@@ -202,8 +203,8 @@ exports.update = async (req, res) => {
       console.log("running c");
       updateObj.categories = JSON.parse(categories);
     }
-    if (extraAmount !== "" && typeof extraAmount !== "undefined") {
-      updateObj.extraAmount = JSON.parse(extraAmount);
+    if (packages !== "" && typeof packages !== "undefined") {
+      updateObj.packages = JSON.parse(packages);
     }
     if (jobTitle !== "" && typeof jobTitle !== "undefined") {
       updateObj.jobTitle = jobTitle;

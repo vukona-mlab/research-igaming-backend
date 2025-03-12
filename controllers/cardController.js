@@ -2,7 +2,7 @@ const { firebaseDb } = require("../config/firebase");
 
 // Luhn algorithm for card number validation
 const isValidCardNumber = (cardNumber) => {
-  const digits = cardNumber.replace(/\D/g, '');
+  const digits = cardNumber.replace(/\D/g, "");
   let sum = 0;
   let isEven = false;
 
@@ -30,13 +30,13 @@ const isValidExpiryDate = (expiryDate) => {
   const regex = /^(0[1-9]|1[0-2])\/([0-9]{2})$/;
   if (!regex.test(expiryDate)) return false;
 
-  const [month, year] = expiryDate.split('/');
+  const [month, year] = expiryDate.split("/");
   const expiry = new Date(2000 + parseInt(year), parseInt(month) - 1);
   const today = new Date();
-  
+
   // Set to end of month for comparison
   expiry.setMonth(expiry.getMonth() + 1, 0);
-  
+
   return expiry > today;
 };
 
@@ -50,46 +50,62 @@ const isValidCardHolderName = (name) => {
 // Get card type based on card number
 const getCardType = (cardNumber) => {
   const firstDigits = cardNumber.substring(0, 2);
-  if (cardNumber.startsWith('4')) {
-    return { type: 'VISA', paypalType: 'VISA' };
-  } else if (['51', '52', '53', '54', '55'].includes(firstDigits)) {
-    return { type: 'MasterCard', paypalType: 'MASTERCARD' };
-  } else if (['34', '37'].includes(firstDigits)) {
-    return { type: 'American Express', paypalType: 'AMEX' };
+  if (cardNumber.startsWith("4")) {
+    return { type: "VISA", paypalType: "VISA" };
+  } else if (["51", "52", "53", "54", "55"].includes(firstDigits)) {
+    return { type: "MasterCard", paypalType: "MASTERCARD" };
+  } else if (["34", "37"].includes(firstDigits)) {
+    return { type: "American Express", paypalType: "AMEX" };
   }
-  return { type: 'Unknown', paypalType: 'UNKNOWN' };
+  return { type: "Unknown", paypalType: "UNKNOWN" };
 };
 
 exports.addCard = async (req, res) => {
   try {
     const userId = req.user.uid;
-    console.log('Adding card for user:', userId); // Debug log
+    console.log("Adding card for user:", userId); // Debug log
 
-    const { 
-      cardNumber, 
-      expiryDate, 
+    const {
+      cardNumber,
+      expiryDate,
       cardHolderName,
       addressLine1,
       addressLine2,
       city,
       state,
       postalCode,
-      countryCode = 'ZA'
+      countryCode = "ZA",
     } = req.body;
 
-    console.log('Received card data:', { 
-      cardNumber: '*'.repeat(cardNumber.length-4) + cardNumber.slice(-4),
+    console.log("Received card data:", {
+      cardNumber: "*".repeat(cardNumber.length - 4) + cardNumber.slice(-4),
       expiryDate,
       cardHolderName,
       // Log other non-sensitive fields
     });
 
     // Validate required fields
-    if (!cardNumber || !expiryDate || !cardHolderName || !addressLine1 || !city || !state || !postalCode) {
-      console.log('Missing required fields'); // Debug log
-      return res.status(400).json({ 
+    if (
+      !cardNumber ||
+      !expiryDate ||
+      !cardHolderName ||
+      !addressLine1 ||
+      !city ||
+      !state ||
+      !postalCode
+    ) {
+      console.log("Missing required fields"); // Debug log
+      return res.status(400).json({
         error: "Missing required fields",
-        required: ["cardNumber", "expiryDate", "cardHolderName", "addressLine1", "city", "state", "postalCode"]
+        required: [
+          "cardNumber",
+          "expiryDate",
+          "cardHolderName",
+          "addressLine1",
+          "city",
+          "state",
+          "postalCode",
+        ],
       });
     }
 
@@ -105,7 +121,7 @@ exports.addCard = async (req, res) => {
 
     // Get card type
     const { type, paypalType } = getCardType(cardNumber);
-    
+
     // Mask card number (store only last 4 digits)
     const maskedCardNumber = `****-****-****-${cardNumber.slice(-4)}`;
     const lastFourDigits = cardNumber.slice(-4);
@@ -120,27 +136,27 @@ exports.addCard = async (req, res) => {
       paypalCardType: paypalType,
       billingAddress: {
         addressLine1,
-        addressLine2: addressLine2 || '',
+        addressLine2: addressLine2 || "",
         adminArea2: city,
         adminArea1: state,
         postalCode,
-        countryCode
+        countryCode,
       },
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
-    console.log('Saving card with data:', {
+    console.log("Saving card with data:", {
       ...newCard,
-      maskedCardNumber: '****-****-****-' + lastFourDigits
+      maskedCardNumber: "****-****-****-" + lastFourDigits,
     });
 
     // Check if user already has this card stored
     const existingCards = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('cards')
-      .where('lastFourDigits', '==', cardNumber.slice(-4))
+      .collection("cards")
+      .where("lastFourDigits", "==", cardNumber.slice(-4))
       .get();
 
     if (!existingCards.empty) {
@@ -149,19 +165,19 @@ exports.addCard = async (req, res) => {
 
     // Store card in user's cards subcollection
     const cardRef = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('cards')
+      .collection("cards")
       .add(newCard);
 
-    console.log('Card saved successfully with ID:', cardRef.id); // Debug log
+    console.log("Card saved successfully with ID:", cardRef.id); // Debug log
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: "Card added successfully",
       card: {
         id: cardRef.id,
-        ...newCard
-      }
+        ...newCard,
+      },
     });
   } catch (error) {
     console.error("Error adding card:", error);
@@ -175,14 +191,14 @@ exports.getCards = async (req, res) => {
     const userId = req.user.uid;
 
     const cardsSnapshot = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('cards')
+      .collection("cards")
       .get();
 
-    const cards = cardsSnapshot.docs.map(doc => ({
+    const cards = cardsSnapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     res.status(200).json({ cards });
@@ -199,7 +215,7 @@ exports.updateCard = async (req, res) => {
     const { cardHolderName, expiryDate } = req.body;
 
     const updateData = {
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     // Validate fields if provided
@@ -219,9 +235,9 @@ exports.updateCard = async (req, res) => {
 
     // Verify card exists and belongs to user
     const cardRef = firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('cards')
+      .collection("cards")
       .doc(cardId);
 
     const card = await cardRef.get();
@@ -232,14 +248,16 @@ exports.updateCard = async (req, res) => {
     // Verify card belongs to user
     const cardData = card.data();
     if (cardData.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to update this card" });
+      return res
+        .status(403)
+        .json({ error: "Not authorized to update this card" });
     }
 
     await cardRef.update(updateData);
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Card updated successfully",
-      updates: updateData
+      updates: updateData,
     });
   } catch (error) {
     console.error("Error updating card:", error);
@@ -254,9 +272,9 @@ exports.deleteCard = async (req, res) => {
 
     // Verify card exists and belongs to user
     const cardRef = firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('cards')
+      .collection("cards")
       .doc(cardId);
 
     const card = await cardRef.get();
@@ -267,16 +285,18 @@ exports.deleteCard = async (req, res) => {
     // Verify card belongs to user
     const cardData = card.data();
     if (cardData.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to delete this card" });
+      return res
+        .status(403)
+        .json({ error: "Not authorized to delete this card" });
     }
 
     await cardRef.delete();
 
-    res.status(200).json({ 
-      message: "Card deleted successfully" 
+    res.status(200).json({
+      message: "Card deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting card:", error);
     res.status(500).json({ error: "Failed to delete card" });
   }
-}; 
+};
