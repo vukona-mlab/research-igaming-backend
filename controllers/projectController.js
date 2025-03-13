@@ -202,27 +202,26 @@ exports.updateProjectStatus = async (req, res) => {
   try {
     const { projectId } = req.params;
     const { status } = req.body;
-    const userId = req.user.uid;
 
-    const validStatuses = ["pending", "active", "completed", "cancelled"];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
+    // Validate status
+    if (!status) {
+      return res.status(400).json({ error: "Status is required" });
     }
 
-    // Get project data
-    const projectDoc = await firebaseDb.collection("projects").doc(projectId).get();
+    // Validate that status is one of the allowed values
+    const allowedStatuses = ["pending", "approved", "rejected", "completed"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
+    const projectRef = firebaseDb.collection("projects").doc(projectId);
+    const projectDoc = await projectRef.get();
+
     if (!projectDoc.exists) {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    const project = projectDoc.data();
-
-    // Verify user has permission
-    if (project.clientId !== userId && project.freelancerId !== userId) {
-      return res.status(403).json({ error: "Unauthorized to update project status" });
-    }
-
-    await firebaseDb.collection("projects").doc(projectId).update({
+    await projectRef.update({
       status,
       updatedAt: new Date()
     });
@@ -288,5 +287,34 @@ exports.addReview = async (req, res) => {
   } catch (error) {
     console.error("Error adding review:", error);
     res.status(500).json({ error: "Failed to add review" });
+  }
+};
+
+// Add this new endpoint to get project by chat ID
+exports.getProjectByChatId = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    
+    // Query projects collection for a project with matching chatId
+    const projectsSnapshot = await firebaseDb
+      .collection("projects")
+      .where("chatId", "==", chatId)
+      .limit(1)
+      .get();
+
+    if (projectsSnapshot.empty) {
+      return res.status(404).json({ message: "No project found for this chat" });
+    }
+
+    const projectDoc = projectsSnapshot.docs[0];
+    const project = {
+      id: projectDoc.id,
+      ...projectDoc.data()
+    };
+
+    res.status(200).json({ project });
+  } catch (error) {
+    console.error("Error fetching project by chat ID:", error);
+    res.status(500).json({ error: "Failed to fetch project" });
   }
 }; 

@@ -17,4 +17,7 @@ router.delete("/projects/:projectId", projectController.deleteProject);
 router.put("/projects/:projectId/status", projectController.updateProjectStatus);
 router.post("/projects/:projectId/reviews", projectController.addReview);
 
+// Add this new route
+router.get("/projects/chat/:chatId", projectController.getProjectByChatId);
+
 module.exports = router; 

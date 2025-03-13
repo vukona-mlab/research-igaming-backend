@@ -76,6 +76,19 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Add new events for project status updates
+  socket.on("project-status-updated", (data) => {
+    const { chatId, projectId, status, message } = data;
+    // Emit to all users in the chat room
+    io.to(chatId).emit("project-update", {
+      chatId,
+      projectId,
+      status,
+      message,
+      timestamp: new Date()
+    });
+  });
+
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
