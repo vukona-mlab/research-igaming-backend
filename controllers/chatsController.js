@@ -206,9 +206,7 @@ exports.sendMessage = async (req, res) => {
     // Verify sender is a participant
     const chatData = chatDoc.data();
     if (!chatData.participants.includes(senderId)) {
-      return res
-        .status(403)
-        .json({ error: "User is not a participant in this chat" });
+      return res.status(403).json({ error: "User is not a participant in this chat" });
     }
 
     // Create new message
@@ -227,14 +225,16 @@ exports.sendMessage = async (req, res) => {
       updatedAt: timestamp,
     });
 
-    res
-      .status(200)
-      .json({ message: "Message sent successfully", messageData: newMessage });
+    // Emit socket event for real-time updates
+    req.app.get('io').to(chatId).emit('new-message', {
+      chatId,
+      message: newMessage
+    });
+
+    res.status(200).json({ message: "Message sent successfully", messageData: newMessage });
   } catch (error) {
     console.error("Error sending message:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while sending the message" });
+    res.status(500).json({ error: "An error occurred while sending the message" });
   }
 };
 

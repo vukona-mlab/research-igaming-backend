@@ -31,11 +31,25 @@ const io = socketIo(server, {
     credentials: true,
   },
 });
-io.on("connect_error", (err) => {
-  console.log(`connect_error due to ${err.message}`);
-});
-io.on("connection", function (socket) {
-  console.log("a user connected");
+
+// Make io accessible to routes
+app.set('io', io);
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Join a chat room
+  socket.on("join-chat", (chatId) => {
+    socket.join(chatId);
+    console.log(`User ${socket.id} joined chat ${chatId}`);
+  });
+
+  // Leave a chat room
+  socket.on("leave-chat", (chatId) => {
+    socket.leave(chatId);
+    console.log(`User ${socket.id} left chat ${chatId}`);
+  });
+
   socket.on("active-status-update", async (data) => {
     try {
       await firebaseDb.collection("users").doc(data.uid).update({
@@ -43,15 +57,30 @@ io.on("connection", function (socket) {
         updatedAt: new Date(),
       });
 
-      //get all chats
-
       io.emit("get-active-status", {
         uid: data.uid,
         activeStatus: data.activeStatus,
       });
-    } catch (error) {}
+    } catch (error) {
+      console.error("Error updating active status:", error);
+    }
+  });
+
+  // Add new event for project creation
+  socket.on("project-created", (data) => {
+    const { chatId, projectData } = data;
+    // Emit to all users in the chat room
+    io.to(chatId).emit("new-project", {
+      chatId,
+      projectData
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
   });
 });
+
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, "public")));
 
