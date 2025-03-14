@@ -166,3 +166,38 @@ exports.getEscrowDetails = async (req, res) => {
     res.status(500).json({ error: "Failed to get escrow details" });
   }
 };
+
+exports.updateEscrowAccount = async (req, res) => {
+  try {
+    const { escrowId } = req.params;
+    const userId = req.user.uid;
+    const updateData = req.body;
+
+    // Get escrow details
+    const escrowDoc = await firebaseDb.collection("escrow").doc(escrowId).get();
+    if (!escrowDoc.exists) {
+      return res.status(404).json({ error: "Escrow account not found" });
+    }
+
+    const escrow = escrowDoc.data();
+    
+    // Verify user is authorized
+    if (escrow.freelancerId !== userId) {
+      return res.status(403).json({ error: "Unauthorized to update this escrow" });
+    }
+
+    // Update escrow account
+    await escrowDoc.ref.update({
+      ...updateData,
+      updatedAt: new Date()
+    });
+
+    res.status(200).json({
+      message: "Escrow account updated successfully",
+      escrowId: escrowId
+    });
+  } catch (error) {
+    console.error("Error updating escrow account:", error);
+    res.status(500).json({ error: "Failed to update escrow account" });
+  }
+};
