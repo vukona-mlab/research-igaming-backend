@@ -6,6 +6,9 @@ const passport = require("passport");
 // Protect all routes with JWT authentication
 router.use(passport.authenticate("jwt", { session: false }));
 
+// Move the chat route before the generic routes with :projectId parameter
+router.get("/projects/chat/:chatId", projectController.getProjectByChatId);
+
 // CRUD Routes
 router.post("/projects", projectController.createProject);
 router.get("/projects", projectController.getAllProjects);
@@ -16,8 +19,5 @@ router.delete("/projects/:projectId", projectController.deleteProject);
 // Additional Routes
 router.put("/projects/:projectId/status", projectController.updateProjectStatus);
 router.post("/projects/:projectId/reviews", projectController.addReview);
-
-// Add this new route
-router.get("/projects/chat/:chatId", projectController.getProjectByChatId);
 
 module.exports = router; 
