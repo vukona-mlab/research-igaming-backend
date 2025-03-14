@@ -12,10 +12,11 @@ exports.createProject = async (req, res) => {
       freelancerId,
       category,
       requirements,
+      chatId,
     } = req.body;
 
     // Validate required fields
-    if (!title || !description || !budget || !deadline || !clientId || !category) {
+    if (!title || !description || !budget || !deadline || !clientId || !category || !chatId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -38,7 +39,8 @@ exports.createProject = async (req, res) => {
         freelancer: null,
       },
       escrowId: null,
-      paymentStatus: 'pending'
+      paymentStatus: 'pending',
+      chatId,
     };
 
     const projectRef = await firebaseDb.collection("projects").add(newProject);
