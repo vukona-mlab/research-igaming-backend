@@ -17,6 +17,8 @@ const socketIo = require("socket.io");
 const http = require("http");
 const paymentRoutes = require("./routes/paymentRoutes");
 const escrowRoutes = require("./routes/escrowRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
+const bankRoutes = require("./routes/bankRoutes");
 
 const app = express();
 app.use(cors());
@@ -33,7 +35,7 @@ const io = socketIo(server, {
 });
 
 // Make io accessible to routes
-app.set('io', io);
+app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -72,7 +74,7 @@ io.on("connection", (socket) => {
     // Emit to all users in the chat room
     io.to(chatId).emit("new-project", {
       chatId,
-      projectData
+      projectData,
     });
   });
 
@@ -85,7 +87,7 @@ io.on("connection", (socket) => {
       projectId,
       status,
       message,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   });
 
@@ -110,6 +112,8 @@ app.use("/api", projectRoutes);
 app.use("/api", cardRoutes);
 app.use("/api", paymentRoutes);
 app.use("/api", escrowRoutes);
+app.use("/api", bankRoutes);
+app.use("/api", transactionRoutes);
 
 const PORT = process.env.PORT || 8000;
 

@@ -1,26 +1,27 @@
 const { firebaseDb } = require("../config/firebase");
-const paypal = require('@paypal/checkout-server-sdk');
-const { v4: uuidv4 } = require('uuid');
-const { FieldValue } = require('firebase-admin/firestore');
-const escrowController = require('./escrowController');
+const paypal = require("@paypal/checkout-server-sdk");
+const { v4: uuidv4 } = require("uuid");
+const { FieldValue } = require("firebase-admin/firestore");
+const escrowController = require("./escrowController");
 
 // PayPal configuration with validation
-if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
-  console.error('PayPal credentials are missing in environment variables');
-  throw new Error('PayPal configuration is incomplete');
-}
+// if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+//   console.error('PayPal credentials are missing in environment variables');
+//   throw new Error('PayPal configuration is incomplete');
+// }
 
-console.log('Initializing PayPal with environment:', process.env.NODE_ENV);
+console.log("Initializing PayPal with environment:", process.env.NODE_ENV);
 
-const environment = process.env.NODE_ENV === 'production'
-  ? new paypal.core.LiveEnvironment(
-      process.env.PAYPAL_CLIENT_ID,
-      process.env.PAYPAL_CLIENT_SECRET
-    )
-  : new paypal.core.SandboxEnvironment(
-      process.env.PAYPAL_CLIENT_ID,
-      process.env.PAYPAL_CLIENT_SECRET
-    );
+const environment =
+  process.env.NODE_ENV === "production"
+    ? new paypal.core.LiveEnvironment(
+        process.env.PAYPAL_CLIENT_ID,
+        process.env.PAYPAL_CLIENT_SECRET
+      )
+    : new paypal.core.SandboxEnvironment(
+        process.env.PAYPAL_CLIENT_ID,
+        process.env.PAYPAL_CLIENT_SECRET
+      );
 
 const client = new paypal.core.PayPalHttpClient(environment);
 
@@ -29,7 +30,7 @@ exports.processStoredCardPayment = async (req, res) => {
   try {
     const { amount, cardId } = req.body;
     const userId = req.user.uid;
-    const currency = 'ZAR'; // Always use ZAR
+    const currency = "ZAR"; // Always use ZAR
 
     // Validate input
     if (!amount || !cardId) {
@@ -38,9 +39,9 @@ exports.processStoredCardPayment = async (req, res) => {
 
     // Get stored card
     const cardRef = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('cards')
+      .collection("cards")
       .doc(cardId)
       .get();
 
@@ -59,41 +60,45 @@ exports.processStoredCardPayment = async (req, res) => {
     const request = new paypal.orders.OrdersCreateRequest();
     request.headers = {
       ...request.headers,
-      'PayPal-Request-Id': uuidv4(),
-      'prefer': 'return=representation'
+      "PayPal-Request-Id": uuidv4(),
+      prefer: "return=representation",
     };
 
     request.requestBody({
-      intent: 'CAPTURE',
-      purchase_units: [{
-        amount: {
-          currency_code: currency,
-          value: amount.toString()
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: currency,
+            value: amount.toString(),
+          },
+          description: `Payment using card ending in ${card.maskedCardNumber.slice(
+            -4
+          )}`,
         },
-        description: `Payment using card ending in ${card.maskedCardNumber.slice(-4)}`
-      }],
+      ],
       payment_source: {
         card: {
           last_digits: card.maskedCardNumber.slice(-4),
           name: card.cardHolderName,
           billing_address: {
-            address_line_1: '123 Main St',
-            admin_area_2: 'City',
-            admin_area_1: 'State',
-            postal_code: '12345',
-            country_code: 'ZA' // South Africa country code
-          }
-        }
-      }
+            address_line_1: "123 Main St",
+            admin_area_2: "City",
+            admin_area_1: "State",
+            postal_code: "12345",
+            country_code: "ZA", // South Africa country code
+          },
+        },
+      },
     });
 
     const order = await client.execute(request);
 
     // Store transaction in Firebase
     await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('transactions')
+      .collection("transactions")
       .doc(order.result.id)
       .set({
         orderId: order.result.id,
@@ -104,7 +109,7 @@ exports.processStoredCardPayment = async (req, res) => {
         cardLastFour: card.maskedCardNumber.slice(-4),
         cardType: card.cardType,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
     res.status(200).json({
@@ -114,14 +119,13 @@ exports.processStoredCardPayment = async (req, res) => {
       amount: amount,
       currency: currency,
       cardLastFour: card.maskedCardNumber.slice(-4),
-      links: order.result.links
+      links: order.result.links,
     });
-
   } catch (error) {
-    console.error('Error processing payment:', error);
+    console.error("Error processing payment:", error);
     res.status(500).json({
       error: "Payment processing failed",
-      details: error.message
+      details: error.message,
     });
   }
 };
@@ -130,31 +134,30 @@ exports.processStoredCardPayment = async (req, res) => {
 exports.getPaymentHistory = async (req, res) => {
   try {
     const userId = req.user.uid;
-    
+
     const transactionsSnapshot = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('transactions')
-      .orderBy('createdAt', 'desc')
+      .collection("transactions")
+      .orderBy("createdAt", "desc")
       .get();
 
-    const transactions = transactionsSnapshot.docs.map(doc => ({
+    const transactions = transactionsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt.toDate(),
-      updatedAt: doc.data().updatedAt.toDate()
+      updatedAt: doc.data().updatedAt.toDate(),
     }));
 
     res.status(200).json({
       success: true,
-      transactions
+      transactions,
     });
-
   } catch (error) {
-    console.error('Error fetching payment history:', error);
+    console.error("Error fetching payment history:", error);
     res.status(500).json({
       error: "Failed to fetch payment history",
-      details: error.message
+      details: error.message,
     });
   }
 };
@@ -168,16 +171,16 @@ exports.capturePayment = async (req, res) => {
     const request = new paypal.orders.OrdersCaptureRequest(orderId);
     request.headers = {
       ...request.headers,
-      'PayPal-Request-Id': uuidv4()
+      "PayPal-Request-Id": uuidv4(),
     };
 
     const capture = await client.execute(request);
 
     // Get transaction details
     const transactionRef = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('transactions')
+      .collection("transactions")
       .doc(orderId)
       .get();
 
@@ -187,22 +190,22 @@ exports.capturePayment = async (req, res) => {
     await transactionRef.ref.update({
       status: capture.result.status,
       captureId: capture.result.purchase_units[0].payments.captures[0].id,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     // Update project payment status
     await firebaseDb
-      .collection('projects')
+      .collection("projects")
       .doc(transaction.projectId)
       .update({
-        'payments': FieldValue.arrayUnion({
+        payments: FieldValue.arrayUnion({
           transactionId: orderId,
           captureId: capture.result.purchase_units[0].payments.captures[0].id,
           status: capture.result.status,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         }),
-        paymentStatus: 'completed',
-        updatedAt: new Date()
+        paymentStatus: "completed",
+        updatedAt: new Date(),
       });
 
     res.status(200).json({
@@ -210,14 +213,13 @@ exports.capturePayment = async (req, res) => {
       orderId: capture.result.id,
       status: capture.result.status,
       projectId: transaction.projectId,
-      captureId: capture.result.purchase_units[0].payments.captures[0].id
+      captureId: capture.result.purchase_units[0].payments.captures[0].id,
     });
-
   } catch (error) {
-    console.error('Error capturing payment:', error);
+    console.error("Error capturing payment:", error);
     res.status(500).json({
       error: "Failed to capture payment",
-      details: error.message
+      details: error.message,
     });
   }
 };
@@ -227,28 +229,28 @@ exports.createOrder = async (req, res) => {
   try {
     const { amount, cardId, projectId, freelancerId, escrowId } = req.body;
     const clientId = req.user.uid;
-    const localCurrency = 'ZAR';
-    const paypalCurrency = 'USD';
+    const localCurrency = "ZAR";
+    const paypalCurrency = "USD";
 
-    console.log('Creating PayPal order:', {
+    console.log("Creating PayPal order:", {
       amount,
       projectId,
       freelancerId,
       escrowId,
-      clientId
+      clientId,
     });
 
     // Validate PayPal client
     if (!client) {
-      console.error('PayPal client not initialized');
+      console.error("PayPal client not initialized");
       return res.status(500).json({ error: "Payment service not available" });
     }
 
     // Validate required fields
     if (!amount || !projectId || !freelancerId) {
-      return res.status(400).json({ 
-        error: "Missing required fields", 
-        required: ["amount", "projectId", "freelancerId"] 
+      return res.status(400).json({
+        error: "Missing required fields",
+        required: ["amount", "projectId", "freelancerId"],
       });
     }
 
@@ -259,7 +261,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify project exists and belongs to the freelancer
     const projectRef = await firebaseDb
-      .collection('projects')
+      .collection("projects")
       .doc(projectId)
       .get();
 
@@ -269,12 +271,14 @@ exports.createOrder = async (req, res) => {
 
     const project = projectRef.data();
     if (project.freelancerId !== freelancerId) {
-      return res.status(403).json({ error: "Project does not belong to specified freelancer" });
+      return res
+        .status(403)
+        .json({ error: "Project does not belong to specified freelancer" });
     }
 
     // Verify freelancer exists
     const freelancerRef = await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(freelancerId)
       .get();
 
@@ -290,9 +294,9 @@ exports.createOrder = async (req, res) => {
     // Handle saved card or new card
     if (cardId) {
       const cardRef = await firebaseDb
-        .collection('users')
+        .collection("users")
         .doc(clientId)
-        .collection('cards')
+        .collection("cards")
         .doc(cardId)
         .get();
 
@@ -303,7 +307,9 @@ exports.createOrder = async (req, res) => {
       card = cardRef.data();
 
       if (card.userId !== clientId) {
-        return res.status(403).json({ error: "Not authorized to use this card" });
+        return res
+          .status(403)
+          .json({ error: "Not authorized to use this card" });
       }
     } else {
       return res.status(400).json({ error: "cardId is required" });
@@ -312,37 +318,39 @@ exports.createOrder = async (req, res) => {
     const request = new paypal.orders.OrdersCreateRequest();
     request.headers = {
       ...request.headers,
-      'PayPal-Request-Id': uuidv4(),
-      'prefer': 'return=representation'
+      "PayPal-Request-Id": uuidv4(),
+      prefer: "return=representation",
     };
 
-    console.log('PayPal request body:', {
-      intent: 'CAPTURE',
+    console.log("PayPal request body:", {
+      intent: "CAPTURE",
       amount: usdAmount,
       currency: paypalCurrency,
-      description: `Payment for Project: ${project.title || projectId}`
+      description: `Payment for Project: ${project.title || projectId}`,
     });
 
     // Create order request
     request.requestBody({
-      intent: 'CAPTURE',
-      purchase_units: [{
-        amount: {
-          currency_code: paypalCurrency,
-          value: usdAmount
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: paypalCurrency,
+            value: usdAmount,
+          },
+          description: `Payment for Project: ${project.title || projectId}`,
         },
-        description: `Payment for Project: ${project.title || projectId}`
-      }]
+      ],
     });
 
     const order = await client.execute(request);
-    console.log('PayPal order created:', order.result.id);
+    console.log("PayPal order created:", order.result.id);
 
     // Store transaction with project and user details
     await firebaseDb
-      .collection('users')
+      .collection("users")
       .doc(clientId)
-      .collection('transactions')
+      .collection("transactions")
       .doc(order.result.id)
       .set({
         orderId: order.result.id,
@@ -358,14 +366,14 @@ exports.createOrder = async (req, res) => {
         exchangeRate: exchangeRate,
         status: order.result.status,
         cardLastFour: card.maskedCardNumber.slice(-4),
-        cardType: card.cardType || 'Unknown',
+        cardType: card.cardType || "Unknown",
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
     // Also store transaction reference in project
     await firebaseDb
-      .collection('projects')
+      .collection("projects")
       .doc(projectId)
       .update({
         payments: FieldValue.arrayUnion({
@@ -373,25 +381,28 @@ exports.createOrder = async (req, res) => {
           amount: amount,
           currency: localCurrency,
           status: order.result.status,
-          createdAt: new Date()
+          createdAt: new Date(),
         }),
         lastPaymentDate: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
     // If this is an escrow payment, update escrow status
     if (escrowId) {
-      await firebaseDb.collection("escrow").doc(escrowId).update({
-        status: 'processing',
-        paymentOrderId: order.result.id,
-        updatedAt: new Date(),
-        transactions: FieldValue.arrayUnion({
-          type: 'payment_initiated',
-          orderId: order.result.id,
-          amount: amount,
-          timestamp: new Date()
-        })
-      });
+      await firebaseDb
+        .collection("escrow")
+        .doc(escrowId)
+        .update({
+          status: "processing",
+          paymentOrderId: order.result.id,
+          updatedAt: new Date(),
+          transactions: FieldValue.arrayUnion({
+            type: "payment_initiated",
+            orderId: order.result.id,
+            amount: amount,
+            timestamp: new Date(),
+          }),
+        });
     }
 
     res.status(200).json({
@@ -408,19 +419,19 @@ exports.createOrder = async (req, res) => {
       paypalCurrency: paypalCurrency,
       exchangeRate: exchangeRate,
       cardLastFour: card.maskedCardNumber.slice(-4),
-      links: order.result.links
+      links: order.result.links,
     });
-
   } catch (error) {
     console.error("Error creating payment order:", {
       message: error.message,
       details: error.details || error,
-      statusCode: error.statusCode
+      statusCode: error.statusCode,
     });
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Failed to create payment order",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -438,16 +449,16 @@ exports.handlePayPalReturn = async (req, res) => {
     const request = new paypal.orders.OrdersCaptureRequest(token);
     request.headers = {
       ...request.headers,
-      'PayPal-Request-Id': uuidv4()
+      "PayPal-Request-Id": uuidv4(),
     };
 
     const capture = await client.execute(request);
 
     // Get transaction details
-    const transactionsRef = firebaseDb.collection('users');
+    const transactionsRef = firebaseDb.collection("users");
     const snapshot = await transactionsRef
-      .collectionGroup('transactions')
-      .where('orderId', '==', token)
+      .collectionGroup("transactions")
+      .where("orderId", "==", token)
       .limit(1)
       .get();
 
@@ -463,42 +474,48 @@ exports.handlePayPalReturn = async (req, res) => {
       status: capture.result.status,
       payerId: PayerID,
       captureId: capture.result.purchase_units[0].payments.captures[0].id,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     // Update project payment status
     await firebaseDb
-      .collection('projects')
+      .collection("projects")
       .doc(transaction.projectId)
       .update({
-        'payments': FieldValue.arrayUnion({
+        payments: FieldValue.arrayUnion({
           transactionId: token,
           captureId: capture.result.purchase_units[0].payments.captures[0].id,
           status: capture.result.status,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         }),
-        paymentStatus: 'completed',
-        updatedAt: new Date()
+        paymentStatus: "completed",
+        updatedAt: new Date(),
       });
 
     // If this was an escrow payment, update escrow status
     if (transaction.escrowId) {
-      await firebaseDb.collection("escrow").doc(transaction.escrowId).update({
-        status: 'funded',
-        updatedAt: new Date(),
-        transactions: FieldValue.arrayUnion({
-          type: 'payment_completed',
-          orderId: token,
-          captureId: capture.result.purchase_units[0].payments.captures[0].id,
-          timestamp: new Date()
-        })
-      });
+      await firebaseDb
+        .collection("escrow")
+        .doc(transaction.escrowId)
+        .update({
+          status: "funded",
+          updatedAt: new Date(),
+          transactions: FieldValue.arrayUnion({
+            type: "payment_completed",
+            orderId: token,
+            captureId: capture.result.purchase_units[0].payments.captures[0].id,
+            timestamp: new Date(),
+          }),
+        });
 
       // Update project status
-      await firebaseDb.collection("projects").doc(transaction.projectId).update({
-        status: 'active',
-        updatedAt: new Date()
-      });
+      await firebaseDb
+        .collection("projects")
+        .doc(transaction.projectId)
+        .update({
+          status: "active",
+          updatedAt: new Date(),
+        });
     }
 
     // Redirect to success page or return success response
@@ -507,11 +524,10 @@ exports.handlePayPalReturn = async (req, res) => {
       orderId: capture.result.id,
       status: capture.result.status,
       projectId: transaction.projectId,
-      captureId: capture.result.purchase_units[0].payments.captures[0].id
+      captureId: capture.result.purchase_units[0].payments.captures[0].id,
     });
-
   } catch (error) {
     console.error("Error handling PayPal return:", error);
     res.status(500).json({ error: "Failed to process payment" });
   }
-}; 
+};
