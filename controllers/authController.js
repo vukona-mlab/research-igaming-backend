@@ -343,3 +343,26 @@ exports.deleteAccount = async (req, res) => {
       .json({ error: "An error occurred while deleting the account" });
   }
 };
+
+exports.uploadDocuments = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+
+    if (typeof req.files !== "undefined") {
+      req.files.map(async (file) => {
+        const buffer = req.file.buffer;
+        const extension = req.file.originalname.substring(
+          req.file.originalname.indexOf(".") + 1
+        );
+        const file = bucket.file(
+          userId + req.file.originalname + "." + extension
+        );
+        const resp = await file.save(buffer, {});
+        const imageUrl = await file.getSignedUrl({
+          action: "read",
+          expires: "03-09-2491",
+        });
+      });
+    }
+  } catch (error) {}
+};

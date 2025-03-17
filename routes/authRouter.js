@@ -10,8 +10,10 @@ const {
   googleSignIn,
   resetPassword,
   deleteAccount,
+  uploadDocuments,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
+const uploadArray = require("../middleware/multerArrayUpload");
 
 require("../passport");
 
@@ -37,6 +39,12 @@ router.put(
   upload,
   passport.authenticate("jwt", { session: false }),
   update
+);
+router.put(
+  "/users/:userId/upload",
+  uploadArray("documents", 6),
+  passport.authenticate("jwt", { session: false }),
+  uploadDocuments
 );
 
 router.post("/reset-password", resetPassword);
