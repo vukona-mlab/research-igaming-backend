@@ -35,6 +35,56 @@ const createRecipient = async (type, bank_code, account_number, name) => {
     throw new Error(`Paystack Recipient Creation Failed: ${error.message}`);
   }
 };
+const deleteRecipient = async (id) => {
+  try {
+    const response = await fetch(
+      `${PAYSTACK_API_URL}/transferrecipient/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const data = await response.json();
+
+    console.log(data);
+    if (!response.ok) {
+      throw new Error("Failed to delete Paystack recipient");
+    }
+
+    // const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(`Paystack Recipient Delete Failed: ${error.message}`);
+  }
+};
+const updateRecipient = async (id, name) => {
+  try {
+    const response = await fetch(
+      `${PAYSTACK_API_URL}/transferrecipient/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const data = await response.json();
+
+    console.log(data);
+    if (!response.ok) {
+      throw new Error("Failed to delete Paystack recipient");
+    }
+
+    // const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(`Paystack Recipient Delete Failed: ${error.message}`);
+  }
+};
 const addBankAccount = async (req, res) => {
   const { userId, type, bank_code, account_number, name } = req.body;
 
@@ -108,7 +158,7 @@ const deleteBankAccount = async (req, res) => {
     }
     const userDoc = firebaseDb.collection("users").doc(userId);
     const bankAccountRef = userDoc.collection("bank-accounts").doc(accId);
-
+    await deleteRecipient(accId);
     await bankAccountRef.delete();
 
     res.status(200).json({ message: "Bank account deleted successfully" });
