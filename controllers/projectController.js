@@ -38,9 +38,10 @@ exports.createProject = async (req, res) => {
         client: null,
         freelancer: null,
       },
-      escrowId: null,
+      transactionId: null,
       paymentStatus: 'pending',
       chatId,
+      payments: [],
     };
 
     const projectRef = await firebaseDb.collection("projects").add(newProject);
@@ -58,8 +59,8 @@ exports.createProject = async (req, res) => {
       };
 
       const escrowRef = await firebaseDb.collection("escrow").add(escrowAccount);
-      await projectRef.update({ escrowId: escrowRef.id });
-      newProject.escrowId = escrowRef.id;
+      await projectRef.update({ transactionId: escrowRef.id });
+      newProject.transactionId = escrowRef.id;
     }
 
     res.status(201).json({
@@ -126,7 +127,6 @@ exports.updateProject = async (req, res) => {
     const updateData = req.body;
     const userId = req.user.uid;
 
-    // Get current project data
     const projectDoc = await firebaseDb.collection("projects").doc(projectId).get();
     if (!projectDoc.exists) {
       return res.status(404).json({ error: "Project not found" });
@@ -134,7 +134,6 @@ exports.updateProject = async (req, res) => {
 
     const project = projectDoc.data();
 
-    // Check if user has permission to update
     if (project.clientId !== userId && project.freelancerId !== userId) {
       return res.status(403).json({ error: "Unauthorized to update this project" });
     }
@@ -144,8 +143,9 @@ exports.updateProject = async (req, res) => {
     delete updateData.createdAt;
     delete updateData.clientId;
     delete updateData.reviews;
+    delete updateData.transactionId;
+    delete updateData.payments;
 
-    // Update the project
     await firebaseDb.collection("projects").doc(projectId).update({
       ...updateData,
       updatedAt: new Date()

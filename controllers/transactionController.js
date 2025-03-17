@@ -143,16 +143,15 @@ const verifyPayment = async (req, res) => {
 };
 
 const releaseFunds = async (req, res) => {
-  const { clientId, freelancerId, transactionReference, clientApproval } =
-    req.body;
+  const { clientId, freelancerId, transactionReference, clientApproval } = req.body;
   console.log(req.body);
+  
   if (!clientApproval) {
-    return res
-      .status(400)
-      .json({ error: "Client must approve the release of funds" });
+    return res.status(400).json({ error: "Client must approve the release of funds" });
   }
 
   try {
+    // Check transaction status
     const transactionSnapshot = await firebaseDb
       .collection("users")
       .doc(clientId)
@@ -168,17 +167,27 @@ const releaseFunds = async (req, res) => {
       });
     }
 
-    const recipientSnapshot = await firebaseDb
+    // Check if freelancer has recipient code
+    const freelancerSnapshot = await firebaseDb
       .collection("users")
       .doc(freelancerId)
       .get();
-    const recipientCode = recipientSnapshot.data().recipient_code;
 
+    const freelancerData = freelancerSnapshot.data();
+    if (!freelancerData.recipient_code) {
+      return res.status(400).json({
+        error: "Freelancer needs to set up their bank account before funds can be released",
+        needsBankAccount: true
+      });
+    }
+
+    // Process payout
     const payoutResponse = await createPayout(
-      recipientCode,
+      freelancerData.recipient_code,
       transaction.amount
     );
 
+    // Update transaction statuses
     const freelancerRef = firebaseDb.collection("users").doc(freelancerId);
     const freelancerTransactionRef = freelancerRef
       .collection("transactions")
@@ -199,12 +208,15 @@ const releaseFunds = async (req, res) => {
       .doc(transactionReference)
       .update({ status: "released" });
 
-    res
-      .status(200)
-      .json({ message: "Funds released successfully", payoutResponse });
+    res.status(200).json({ 
+      message: "Funds released successfully", 
+      payoutResponse 
+    });
   } catch (error) {
     console.log({ error });
-    res.status(500).json({ error: "Error releasing funds" });
+    res.status(500).json({ 
+      error: error.message || "Error releasing funds" 
+    });
   }
 };
 

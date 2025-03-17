@@ -15,8 +15,6 @@ const projectRoutes = require("./routes/projectRoutes");
 const cardRoutes = require("./routes/cardRoutes");
 const socketIo = require("socket.io");
 const http = require("http");
-const paymentRoutes = require("./routes/paymentRoutes");
-const escrowRoutes = require("./routes/escrowRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const bankRoutes = require("./routes/bankRoutes");
 
@@ -99,8 +97,9 @@ io.on("connection", (socket) => {
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, "public")));
 
-// Passport middleware
+// Initialize Passport and restore authentication state from session
 app.use(passport.initialize());
+passport.initialize(); // Make sure passport is configured
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -110,8 +109,6 @@ app.use("/api/services", serviceRoutes);
 app.use("/api", chatsRoutes);
 app.use("/api", projectRoutes);
 app.use("/api", cardRoutes);
-app.use("/api", paymentRoutes);
-app.use("/api", escrowRoutes);
 app.use("/api", bankRoutes);
 app.use("/api", transactionRoutes);
 
