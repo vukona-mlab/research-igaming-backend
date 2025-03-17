@@ -42,7 +42,7 @@ router.put(
 );
 router.put(
   "/users/:userId/upload",
-  uploadArray("documents", 6),
+  uploadArray.array("documents", 6),
   passport.authenticate("jwt", { session: false }),
   uploadDocuments
 );

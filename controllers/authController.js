@@ -346,23 +346,59 @@ exports.deleteAccount = async (req, res) => {
 
 exports.uploadDocuments = async (req, res) => {
   try {
+    const { documentsArr } = req.body;
     const userId = req.user.uid;
 
+    let documents = [];
     if (typeof req.files !== "undefined") {
-      req.files.map(async (file) => {
-        const buffer = req.file.buffer;
-        const extension = req.file.originalname.substring(
-          req.file.originalname.indexOf(".") + 1
-        );
-        const file = bucket.file(
-          userId + req.file.originalname + "." + extension
-        );
-        const resp = await file.save(buffer, {});
-        const imageUrl = await file.getSignedUrl({
-          action: "read",
-          expires: "03-09-2491",
-        });
-      });
+      await Promise.all(
+        req.files.map(async (file) => {
+          const buffer = file.buffer;
+          const extension = file.originalname.substring(
+            file.originalname.indexOf(".") + 1
+          );
+          const uploadedFile = firebaseBucket.file(
+            `documents/${userId}/` + file.originalname + "." + extension
+          );
+          const resp = await uploadedFile.save(buffer, {});
+          const [documentUrl] = await uploadedFile.getSignedUrl({
+            action: "read",
+            expires: "03-09-2491",
+          });
+          console.log({ documentsArr }, file.originalname);
+          const doc = documentsArr.find(
+            (obj) => obj.documentName === file.originalname
+          );
+          console.log({ doc });
+
+          documents.push({
+            documentName: file.originalname,
+            documentType: (doc && doc.documentType) || "",
+            dateAdded: (doc && doc.dateAdded) || "",
+            status: "pending",
+            url: documentUrl,
+          });
+        })
+      );
     }
-  } catch (error) {}
+
+    let updateObj = {};
+    if (documents.length !== 0 && typeof documents !== "undefined") {
+      updateObj.documents = documents;
+    }
+
+    if (JSON.stringify(updateObj) !== "{}") {
+      try {
+        const result = await firebaseDb
+          .collection("users")
+          .doc(userId)
+          .update(updateObj);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+    res.status(201).json({ message: "User documents uploaded succesfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
