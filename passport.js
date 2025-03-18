@@ -12,11 +12,9 @@ const opts = {
 
 passport.use(
   new Strategy(opts, async (jwt_payload, done) => {
-    console.log("JWT Payload:", jwt_payload); // Log the payload
     try {
       // Verify the JWT by checking if the user exists in Firebase
       const user = await firebaseAuth.getUser(jwt_payload.uid);
-      console.log("User from Firebase:", user);
       if (user) {
         return done(null, user); // User found
       } else {

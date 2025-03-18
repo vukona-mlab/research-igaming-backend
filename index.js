@@ -15,8 +15,8 @@ const projectRoutes = require("./routes/projectRoutes");
 const cardRoutes = require("./routes/cardRoutes");
 const socketIo = require("socket.io");
 const http = require("http");
-const paymentRoutes = require("./routes/paymentRoutes");
-const escrowRoutes = require("./routes/escrowRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
+const bankRoutes = require("./routes/bankRoutes");
 
 const app = express();
 app.use(cors());
@@ -31,11 +31,25 @@ const io = socketIo(server, {
     credentials: true,
   },
 });
-io.on("connect_error", (err) => {
-  console.log(`connect_error due to ${err.message}`);
-});
-io.on("connection", function (socket) {
-  console.log("a user connected");
+
+// Make io accessible to routes
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Join a chat room
+  socket.on("join-chat", (chatId) => {
+    socket.join(chatId);
+    console.log(`User ${socket.id} joined chat ${chatId}`);
+  });
+
+  // Leave a chat room
+  socket.on("leave-chat", (chatId) => {
+    socket.leave(chatId);
+    console.log(`User ${socket.id} left chat ${chatId}`);
+  });
+
   socket.on("active-status-update", async (data) => {
     try {
       await firebaseDb.collection("users").doc(data.uid).update({
@@ -43,20 +57,49 @@ io.on("connection", function (socket) {
         updatedAt: new Date(),
       });
 
-      //get all chats
-
       io.emit("get-active-status", {
         uid: data.uid,
         activeStatus: data.activeStatus,
       });
-    } catch (error) {}
+    } catch (error) {
+      console.error("Error updating active status:", error);
+    }
+  });
+
+  // Add new event for project creation
+  socket.on("project-created", (data) => {
+    const { chatId, projectData } = data;
+    // Emit to all users in the chat room
+    io.to(chatId).emit("new-project", {
+      chatId,
+      projectData,
+    });
+  });
+
+  // Add new events for project status updates
+  socket.on("project-status-updated", (data) => {
+    const { chatId, projectId, status, message } = data;
+    // Emit to all users in the chat room
+    io.to(chatId).emit("project-update", {
+      chatId,
+      projectId,
+      status,
+      message,
+      timestamp: new Date(),
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
   });
 });
+
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, "public")));
 
-// Passport middleware
+// Initialize Passport and restore authentication state from session
 app.use(passport.initialize());
+passport.initialize(); // Make sure passport is configured
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -66,8 +109,8 @@ app.use("/api/services", serviceRoutes);
 app.use("/api", chatsRoutes);
 app.use("/api", projectRoutes);
 app.use("/api", cardRoutes);
-app.use("/api", paymentRoutes);
-app.use("/api", escrowRoutes);
+app.use("/api", bankRoutes);
+app.use("/api", transactionRoutes);
 
 const PORT = process.env.PORT || 8000;
 
