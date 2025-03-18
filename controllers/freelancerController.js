@@ -116,3 +116,26 @@ exports.getFreelancerProjects = async (req, res) => {
       .json({ error: "An error occurred while fetching freelancers" });
   }
 };
+
+// Get all projects
+exports.getAllProjects = async (req, res) => {
+  try {
+    const projectsSnapshot = await firebaseDb.collection("projects").get();
+
+    if (projectsSnapshot.empty) {
+      return res.status(404).json({ message: "No projects found" });
+    }
+
+    const projects = projectsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json({ projects });
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching projects" });
+  }
+};
