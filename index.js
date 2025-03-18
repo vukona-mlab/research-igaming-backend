@@ -17,6 +17,7 @@ const socketIo = require("socket.io");
 const http = require("http");
 const transactionRoutes = require("./routes/transactionRoutes");
 const bankRoutes = require("./routes/bankRoutes");
+const zoomRoutes = require("./routes/zoomRoutes");
 
 const app = express();
 app.use(cors());
@@ -99,7 +100,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Initialize Passport and restore authentication state from session
 app.use(passport.initialize());
-passport.initialize(); // Make sure passport is configured
+require('./passport'); // Make sure passport is configured
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -111,6 +112,7 @@ app.use("/api", projectRoutes);
 app.use("/api", cardRoutes);
 app.use("/api", bankRoutes);
 app.use("/api", transactionRoutes);
+app.use("/api/zoom", zoomRoutes);
 
 const PORT = process.env.PORT || 8000;
 
