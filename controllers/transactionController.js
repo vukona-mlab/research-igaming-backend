@@ -143,11 +143,14 @@ const verifyPayment = async (req, res) => {
 };
 
 const releaseFunds = async (req, res) => {
-  const { clientId, freelancerId, transactionReference, clientApproval } = req.body;
+  const { clientId, freelancerId, transactionReference, clientApproval } =
+    req.body;
   console.log(req.body);
-  
+
   if (!clientApproval) {
-    return res.status(400).json({ error: "Client must approve the release of funds" });
+    return res
+      .status(400)
+      .json({ error: "Client must approve the release of funds" });
   }
 
   try {
@@ -176,8 +179,9 @@ const releaseFunds = async (req, res) => {
     const freelancerData = freelancerSnapshot.data();
     if (!freelancerData.recipient_code) {
       return res.status(400).json({
-        error: "Freelancer needs to set up their bank account before funds can be released",
-        needsBankAccount: true
+        error:
+          "Freelancer needs to set up their bank account before funds can be released",
+        needsBankAccount: true,
       });
     }
 
@@ -208,14 +212,18 @@ const releaseFunds = async (req, res) => {
       .doc(transactionReference)
       .update({ status: "released" });
 
-    res.status(200).json({ 
-      message: "Funds released successfully", 
-      payoutResponse 
+    await firebaseDb.collection("projects").doc(transaction.projectId).update({
+      paymentStatus: "released",
+      updatedAt: new Date(),
+    });
+    res.status(200).json({
+      message: "Funds released successfully",
+      payoutResponse,
     });
   } catch (error) {
     console.log({ error });
-    res.status(500).json({ 
-      error: error.message || "Error releasing funds" 
+    res.status(500).json({
+      error: error.message || "Error releasing funds",
     });
   }
 };
