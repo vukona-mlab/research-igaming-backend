@@ -4,6 +4,7 @@ const {
   firebaseBucket,
 } = require("../config/firebase");
 const jwt = require("jsonwebtoken");
+const { FieldValue } = require("firebase-admin/firestore");
 
 // Register user
 exports.register = async (req, res) => {
@@ -348,7 +349,6 @@ exports.uploadDocuments = async (req, res) => {
   try {
     const { documentsArr } = req.body;
     const userId = req.user.uid;
-    console.log(documentsArr);
 
     let documents = [];
     if (!documentsArr) {
@@ -380,7 +380,6 @@ exports.uploadDocuments = async (req, res) => {
           const doc = updatedDocs.find(
             (obj) => obj.documentName === file.originalname
           );
-          console.log({ doc });
 
           documents.push({
             documentName: file.originalname,
@@ -403,7 +402,7 @@ exports.uploadDocuments = async (req, res) => {
         const result = await firebaseDb
           .collection("users")
           .doc(userId)
-          .update(updateObj);
+          .update("documents", FieldValue.arrayUnion(...documents));
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
