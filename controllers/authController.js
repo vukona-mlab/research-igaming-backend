@@ -413,3 +413,38 @@ exports.uploadDocuments = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.deleteDocument = async (req, res) => {
+  try {
+    const { documentName } = req.body;
+    const userId = req.user.uid;
+    console.log(documentName);
+    if (!documentName) {
+      return res.status(403).json({ error: "Missing field required" });
+    }
+    const userDoc = await firebaseDb.collection("users").doc(userId).get();
+    const user = userDoc.data();
+    const documents = user.documents;
+
+    if (!documents || documents.length === 0) {
+      return res.status(403).json({ error: "User has no documents" });
+    }
+    firebaseBucket.deleteFiles({
+      prefix: `documents/${userId}/` + documentName,
+    });
+    const filteredArr = documents.filter(
+      (doc) => doc.documentName !== documentName
+    );
+
+    const result = await firebaseDb
+      .collection("users")
+      .doc(userId)
+      .update("documents", filteredArr);
+    res
+      .status(201)
+      .json({ message: "User document has been deleted succesfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error.message });
+  }
+};

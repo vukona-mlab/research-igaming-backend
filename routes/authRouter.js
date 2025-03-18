@@ -11,6 +11,7 @@ const {
   resetPassword,
   deleteAccount,
   uploadDocuments,
+  deleteDocument,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 const uploadArray = require("../middleware/multerArrayUpload");
@@ -39,6 +40,11 @@ router.put(
   upload,
   passport.authenticate("jwt", { session: false }),
   update
+);
+router.delete(
+  "/users/:userId/documents/delete",
+  passport.authenticate("jwt", { session: false }),
+  deleteDocument
 );
 router.put(
   "/users/:userId/upload",
