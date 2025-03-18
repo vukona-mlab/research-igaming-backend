@@ -348,8 +348,20 @@ exports.uploadDocuments = async (req, res) => {
   try {
     const { documentsArr } = req.body;
     const userId = req.user.uid;
+    console.log(documentsArr);
 
     let documents = [];
+    if (!documentsArr) {
+      return res.status(403).json({ error: "Missing field required" });
+    }
+    const updatedDocs = documentsArr.map((document) => {
+      if (typeof document === "string") {
+        let parsedDoc = JSON.parse(document);
+        return parsedDoc;
+      }
+      return document;
+    });
+
     if (typeof req.files !== "undefined") {
       await Promise.all(
         req.files.map(async (file) => {
@@ -365,8 +377,7 @@ exports.uploadDocuments = async (req, res) => {
             action: "read",
             expires: "03-09-2491",
           });
-          console.log({ documentsArr }, file.originalname);
-          const doc = documentsArr.find(
+          const doc = updatedDocs.find(
             (obj) => obj.documentName === file.originalname
           );
           console.log({ doc });
@@ -399,6 +410,7 @@ exports.uploadDocuments = async (req, res) => {
     }
     res.status(201).json({ message: "User documents uploaded succesfully" });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
