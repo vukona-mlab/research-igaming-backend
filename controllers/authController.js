@@ -455,7 +455,7 @@ exports.createAdmin = async (req, res) => {
   
   try {
     // Check if requester is a super admin
-    const requesterDoc = await firebaseDb.collection('users').doc(req.user.uid).get();
+    const requesterDoc = await firebaseDb.collection('admins').doc(req.user.uid).get();
     if (!requesterDoc.exists || !requesterDoc.data().roles.includes('super_admin')) {
       return res.status(403).json({ error: 'Only super admins can create admin accounts' });
     }
@@ -464,7 +464,7 @@ exports.createAdmin = async (req, res) => {
     const userRecord = await firebaseAuth.createUser({ email, password });
 
     // Create admin profile in Firestore
-    await firebaseDb.collection('users').doc(userRecord.uid).set({
+    await firebaseDb.collection('admins').doc(userRecord.uid).set({
       displayName: `${name} ${surname}`,
       name,
       surname,
@@ -490,12 +490,12 @@ exports.createAdmin = async (req, res) => {
 exports.getAllAdmins = async (req, res) => {
   try {
     // Check if requester is a super admin
-    const requesterDoc = await firebaseDb.collection('users').doc(req.user.uid).get();
+    const requesterDoc = await firebaseDb.collection('admins').doc(req.user.uid).get();
     if (!requesterDoc.exists || !requesterDoc.data().roles.includes('super_admin')) {
       return res.status(403).json({ error: 'Only super admins can view all admins' });
     }
 
-    const adminsSnapshot = await firebaseDb.collection('users')
+    const adminsSnapshot = await firebaseDb.collection('admins')
       .where('roles', 'array-contains', 'admin')
       .get();
 
@@ -517,7 +517,7 @@ exports.updateAdmin = async (req, res) => {
 
   try {
     // Check if requester is a super admin
-    const requesterDoc = await firebaseDb.collection('users').doc(req.user.uid).get();
+    const requesterDoc = await firebaseDb.collection('admins').doc(req.user.uid).get();
     if (!requesterDoc.exists || !requesterDoc.data().roles.includes('super_admin')) {
       return res.status(403).json({ error: 'Only super admins can update admin accounts' });
     }
@@ -527,7 +527,7 @@ exports.updateAdmin = async (req, res) => {
     delete updateData.createdAt;
     delete updateData.createdBy;
 
-    await firebaseDb.collection('users').doc(adminId).update({
+    await firebaseDb.collection('admins').doc(adminId).update({
       ...updateData,
       updatedAt: new Date()
     });
@@ -544,7 +544,7 @@ exports.deleteAdmin = async (req, res) => {
 
   try {
     // Check if requester is a super admin
-    const requesterDoc = await firebaseDb.collection('users').doc(req.user.uid).get();
+    const requesterDoc = await firebaseDb.collection('admins').doc(req.user.uid).get();
     if (!requesterDoc.exists || !requesterDoc.data().roles.includes('super_admin')) {
       return res.status(403).json({ error: 'Only super admins can delete admin accounts' });
     }
@@ -553,7 +553,7 @@ exports.deleteAdmin = async (req, res) => {
     await firebaseAuth.deleteUser(adminId);
     
     // Delete from Firestore
-    await firebaseDb.collection('users').doc(adminId).delete();
+    await firebaseDb.collection('admins').doc(adminId).delete();
 
     res.status(200).json({ message: 'Admin deleted successfully' });
   } catch (error) {
@@ -570,27 +570,32 @@ exports.adminLogin = async (req, res) => {
     const userRecord = await firebaseAuth.getUserByEmail(email);
 
     // Get user profile from Firestore
-    const userDoc = await firebaseDb.collection('users').doc(userRecord.uid).get();
+    const userDoc = await firebaseDb.collection('admins').doc(userRecord.uid).get();
 
     if (!userDoc.exists) {
       return res.status(404).json({ error: 'User profile not found' });
     }
 
-    // Check if user has admin role
+    // Check if user has admin or super_admin role
     const userData = userDoc.data();
-    if (!userData.roles.includes('admin') && !userData.roles.includes('super_admin')) {
+    const isAdmin = userData.roles.some(role => ['admin', 'super_admin'].includes(role));
+    
+    if (!isAdmin) {
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
 
     // Update active status
-    await firebaseDb.collection('users').doc(userRecord.uid).update({
+    await firebaseDb.collection('admins').doc(userRecord.uid).update({
       activeStatus: true,
       updatedAt: new Date(),
       lastSeen: new Date()
     });
 
-    // Generate JWT token
-    const payload = { uid: userRecord.uid };
+    // Generate JWT token with role information
+    const payload = { 
+      uid: userRecord.uid,
+      roles: userData.roles
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.status(200).json({
@@ -598,12 +603,24 @@ exports.adminLogin = async (req, res) => {
       token: `Bearer ${token}`,
       user: {
         uid: userRecord.uid,
-        ...userData
+        email: userData.email,
+        name: userData.name,
+        surname: userData.surname,
+        displayName: userData.displayName,
+        roles: userData.roles,
+        isSuper: userData.roles.includes('super_admin')
       }
     });
   } catch (error) {
     console.error('Admin login error:', error);
-    res.status(401).json({ error: 'Invalid email or password' });
+    // Improved error handling
+    let errorMessage = 'Invalid email or password';
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = 'User not found';
+    } else if (error.code === 'auth/wrong-password') {
+      errorMessage = 'Invalid password';
+    }
+    res.status(401).json({ error: errorMessage });
   }
 };
 
@@ -618,7 +635,7 @@ exports.initializeSuperAdmin = async (req, res) => {
     }
 
     // Check if any super admin already exists
-    const superAdminCheck = await firebaseDb.collection('users')
+    const superAdminCheck = await firebaseDb.collection('admins')
       .where('roles', 'array-contains', 'super_admin')
       .get();
 
@@ -634,7 +651,7 @@ exports.initializeSuperAdmin = async (req, res) => {
     });
 
     // Create super admin profile in Firestore
-    await firebaseDb.collection('users').doc(userRecord.uid).set({
+    await firebaseDb.collection('admins').doc(userRecord.uid).set({
       displayName: `${name} ${surname}`,
       name,
       surname,
