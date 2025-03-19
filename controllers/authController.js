@@ -676,3 +676,99 @@ exports.initializeSuperAdmin = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+// Get admin profile
+exports.getAdminProfile = async (req, res) => {
+  const { adminId } = req.params;
+  
+  try {
+    // Check if requester is an admin or super admin
+    const requesterDoc = await firebaseDb.collection('admins').doc(req.user.uid).get();
+    if (!requesterDoc.exists) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const requesterData = requesterDoc.data();
+    const isSuperAdmin = requesterData.roles.includes('super_admin');
+    
+    // Regular admins can only view their own profile
+    if (!isSuperAdmin && req.user.uid !== adminId) {
+      return res.status(403).json({ error: 'You can only view your own profile' });
+    }
+
+    // Get admin profile
+    const adminDoc = await firebaseDb.collection('admins').doc(adminId).get();
+    if (!adminDoc.exists) {
+      return res.status(404).json({ error: 'Admin profile not found' });
+    }
+
+    const adminData = adminDoc.data();
+    // Remove sensitive information
+    delete adminData.createdBy;
+
+    res.status(200).json({
+      profile: {
+        id: adminDoc.id,
+        ...adminData
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Update admin profile
+exports.updateAdminProfile = async (req, res) => {
+  const { adminId } = req.params;
+  const updateData = req.body;
+  
+  try {
+    // Check if requester is an admin or super admin
+    const requesterDoc = await firebaseDb.collection('admins').doc(req.user.uid).get();
+    if (!requesterDoc.exists) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const requesterData = requesterDoc.data();
+    const isSuperAdmin = requesterData.roles.includes('super_admin');
+    
+    // Regular admins can only update their own profile
+    if (!isSuperAdmin && req.user.uid !== adminId) {
+      return res.status(403).json({ error: 'You can only update your own profile' });
+    }
+
+    // Get admin profile
+    const adminDoc = await firebaseDb.collection('admins').doc(adminId).get();
+    if (!adminDoc.exists) {
+      return res.status(404).json({ error: 'Admin profile not found' });
+    }
+
+    // Remove fields that shouldn't be updated
+    const protectedFields = ['roles', 'createdAt', 'createdBy', 'email'];
+    protectedFields.forEach(field => delete updateData[field]);
+
+    // Additional protected fields for non-super admins
+    if (!isSuperAdmin) {
+      delete updateData.isInitialSuperAdmin;
+    }
+
+    // Validate required fields
+    if (updateData.name === '' || updateData.surname === '') {
+      return res.status(400).json({ error: 'Name and surname cannot be empty' });
+    }
+
+    // Update the profile
+    await firebaseDb.collection('admins').doc(adminId).update({
+      ...updateData,
+      displayName: `${updateData.name || adminDoc.data().name} ${updateData.surname || adminDoc.data().surname}`,
+      updatedAt: new Date()
+    });
+
+    res.status(200).json({ 
+      message: 'Profile updated successfully',
+      updatedFields: Object.keys(updateData)
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
