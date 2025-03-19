@@ -5,9 +5,10 @@ const freelancerController = require("../controllers/freelancerController");
 // Route to get freelancers and their projects
 router.get("/freelancers/projects", freelancerController.getFreelancerProjects);
 
+// Route to get freelancers
+router.get("/freelancers", freelancerController.getFreelancers);
+
 // Route to get all projects
 router.get("/projects", freelancerController.getAllProjects);
-
-router.get("/freelancers", freelancerController.getFreelancers);
 
 module.exports = router;

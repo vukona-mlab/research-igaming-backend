@@ -1,13 +1,33 @@
 const { firebaseDb } = require("../config/firebase");
 
-// Get all users with the "freelancer" role
+// Get all users with the "freelancer" role and support pagination
 exports.getFreelancers = async (req, res) => {
   try {
-    // Query Firestore for users with the role "freelancer"
-    const freelancersSnapshot = await firebaseDb
+    // Get the page number and page size from query parameters (default pageSize to 30)
+    const pageSize = parseInt(req.query.pageSize) || 30;
+    const page = parseInt(req.query.page) || 1;
+
+    // Calculate the starting point for the query
+    let query = firebaseDb
       .collection("users")
       .where("roles", "array-contains", "freelancer")
-      .get();
+      .limit(pageSize);
+
+    // If it's not the first page, fetch the last document of the previous page
+    if (page > 1) {
+      const lastVisibleDoc = await firebaseDb
+        .collection("users")
+        .orderBy("name") // Ensure you order by a field (for consistency)
+        .limit(pageSize)
+        .startAfter(pageSize * (page - 1) - 1) // Calculate where to start the next page
+        .get();
+
+      const lastDoc = lastVisibleDoc.docs[lastVisibleDoc.docs.length - 1];
+      query = query.startAfter(lastDoc); // Start after the last document from the previous page
+    }
+
+    // Query Firestore for users with the role "freelancer"
+    const freelancersSnapshot = await query.get();
 
     if (freelancersSnapshot.empty) {
       return res.status(404).json({ message: "No freelancers found" });
@@ -28,14 +48,33 @@ exports.getFreelancers = async (req, res) => {
   }
 };
 
-// Get freelancers and their associated projects
+// Get freelancers and their associated projects with pagination
 exports.getFreelancerProjects = async (req, res) => {
   try {
-    // Step 1: Get all freelancers
-    const freelancersSnapshot = await firebaseDb
+    // Get the page number and page size from query parameters (default pageSize to 30)
+    const pageSize = parseInt(req.query.pageSize) || 30;
+    const page = parseInt(req.query.page) || 1;
+
+    // Step 1: Get all freelancers with pagination
+    let query = firebaseDb
       .collection("users")
       .where("roles", "array-contains", "freelancer")
-      .get();
+      .limit(pageSize);
+
+    // If it's not the first page, fetch the last document of the previous page
+    if (page > 1) {
+      const lastVisibleDoc = await firebaseDb
+        .collection("users")
+        .orderBy("name") // Ensure you order by a field (for consistency)
+        .limit(pageSize)
+        .startAfter(pageSize * (page - 1) - 1) // Calculate where to start the next page
+        .get();
+
+      const lastDoc = lastVisibleDoc.docs[lastVisibleDoc.docs.length - 1];
+      query = query.startAfter(lastDoc); // Start after the last document from the previous page
+    }
+
+    const freelancersSnapshot = await query.get();
 
     if (freelancersSnapshot.empty) {
       return res.status(404).json({ message: "No freelancers found" });
@@ -47,6 +86,7 @@ exports.getFreelancerProjects = async (req, res) => {
       uid: doc.id,
       ...doc.data(),
     }));
+
     const freelancerIds = freelancers.map((f) => f.id);
 
     // Step 3: Get projects where freelancerId matches any of the freelancer IDs
@@ -60,10 +100,9 @@ exports.getFreelancerProjects = async (req, res) => {
       ...doc.data(),
     }));
 
-    // Step 4: Attach projects to respective freelancers and ensure uid is present
+    // Step 4: Attach projects to respective freelancers
     const result = freelancers.map((freelancer) => ({
       ...freelancer,
-      uid: freelancer.id,
       projects: projects.filter(
         (project) => project.freelancerId === freelancer.id
       ),
@@ -71,7 +110,7 @@ exports.getFreelancerProjects = async (req, res) => {
 
     res.status(200).json({ freelancers: result });
   } catch (error) {
-    console.error("Error fetching freelancers:", error);
+    console.error("Error fetching freelancers and their projects:", error);
     res
       .status(500)
       .json({ error: "An error occurred while fetching freelancers" });
