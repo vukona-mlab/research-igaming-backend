@@ -154,6 +154,8 @@ exports.getUserChats = async (req, res) => {
 
       if (userDoc.exists) {
         const userData = userDoc.data();
+        const lastMessageTimestamp = chatData.lastMessageTimestamp || chatData.updatedAt || chatData.createdAt;
+        
         chats.push({
           id: doc.id,
           ...chatData,
@@ -171,14 +173,17 @@ exports.getUserChats = async (req, res) => {
             },
           ],
           lastMessage: chatData.lastMessage || "",
-          updatedAt: chatData.updatedAt || chatData.createdAt,
+          updatedAt: lastMessageTimestamp,
+          timestamp: lastMessageTimestamp?._seconds || Math.floor(lastMessageTimestamp?.getTime() / 1000) || Math.floor(Date.now() / 1000)
         });
       }
     }
 
     // Sort chats by updatedAt timestamp
     chats.sort((a, b) => {
-      return (b?.updatedAt?.toDate() || 0) - (a?.updatedAt?.toDate() || 0);
+      const timestampA = a.timestamp;
+      const timestampB = b.timestamp;
+      return timestampB - timestampA;
     });
 
     res.status(200).json({ chats });
@@ -192,7 +197,7 @@ exports.getUserChats = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { message, senderId, attachments } = req.body;
+    const { message, senderId, type, meetingDetails } = req.body;
     const timestamp = new Date();
 
     // Get the chat document
@@ -209,29 +214,43 @@ exports.sendMessage = async (req, res) => {
       return res.status(403).json({ error: "User is not a participant in this chat" });
     }
 
-    // Create new message
+    // Create new message object based on type
     const newMessage = {
       text: message,
       senderId,
       createdAt: timestamp,
-      attachments: attachments || [],
-      type: "text",
+      type: type || 'text'
     };
 
-    // Update the chat document
+    // Add meeting details if it's a zoom meeting message
+    if (type === 'zoom-meeting' && meetingDetails) {
+      newMessage.meetingDetails = meetingDetails;
+    }
+
+    // Update the chat document with server timestamp
     await chatRef.update({
       messages: [...chatData.messages, newMessage],
       lastMessage: message,
       updatedAt: timestamp,
+      lastMessageTimestamp: timestamp // Add explicit timestamp for last message
     });
 
     // Emit socket event for real-time updates
     req.app.get('io').to(chatId).emit('new-message', {
       chatId,
-      message: newMessage
+      message: {
+        ...newMessage,
+        createdAt: timestamp // Ensure timestamp is included in socket emission
+      }
     });
 
-    res.status(200).json({ message: "Message sent successfully", messageData: newMessage });
+    res.status(200).json({ 
+      message: "Message sent successfully", 
+      messageData: {
+        ...newMessage,
+        createdAt: timestamp // Ensure timestamp is included in response
+      }
+    });
   } catch (error) {
     console.error("Error sending message:", error);
     res.status(500).json({ error: "An error occurred while sending the message" });
