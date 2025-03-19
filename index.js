@@ -18,6 +18,7 @@ const http = require("http");
 const transactionRoutes = require("./routes/transactionRoutes");
 const bankRoutes = require("./routes/bankRoutes");
 const zoomRoutes = require("./routes/zoomRoutes");
+const clientRoutes = require("./routes/clientRoutes");
 
 const app = express();
 app.use(cors());
@@ -113,6 +114,7 @@ app.use("/api", cardRoutes);
 app.use("/api", bankRoutes);
 app.use("/api", transactionRoutes);
 app.use("/api/zoom", zoomRoutes);
+app.use("/api", clientRoutes);
 
 const PORT = process.env.PORT || 8000;
 
