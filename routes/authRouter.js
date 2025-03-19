@@ -12,6 +12,12 @@ const {
   deleteAccount,
   uploadDocuments,
   deleteDocument,
+  createAdmin,
+  getAllAdmins,
+  updateAdmin,
+  deleteAdmin,
+  adminLogin,
+  initializeSuperAdmin,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 const uploadArray = require("../middleware/multerArrayUpload");
@@ -60,5 +66,35 @@ router.delete(
   passport.authenticate("jwt", { session: false }),
   deleteAccount
 );
+
+// Admin routes
+router.post('/admin/login', adminLogin);
+
+router.post(
+  '/admin/create',
+  passport.authenticate('jwt', { session: false }),
+  createAdmin
+);
+
+router.get(
+  '/admin/all',
+  passport.authenticate('jwt', { session: false }),
+  getAllAdmins
+);
+
+router.put(
+  '/admin/:adminId',
+  passport.authenticate('jwt', { session: false }),
+  updateAdmin
+);
+
+router.delete(
+  '/admin/:adminId',
+  passport.authenticate('jwt', { session: false }),
+  deleteAdmin
+);
+
+// Initialize super admin (one-time setup)
+router.post('/admin/initialize', initializeSuperAdmin);
 
 module.exports = router;
