@@ -5,6 +5,7 @@ const {
 } = require("../config/firebase");
 const jwt = require("jsonwebtoken");
 const { FieldValue } = require("firebase-admin/firestore");
+const { v4: uuidv4 } = require("uuid");
 
 // Register user
 exports.register = async (req, res) => {
@@ -369,8 +370,10 @@ exports.uploadDocuments = async (req, res) => {
           const extension = file.originalname.substring(
             file.originalname.indexOf(".") + 1
           );
+          const id = uuidv4();
+
           const uploadedFile = firebaseBucket.file(
-            `documents/${userId}/` + file.originalname + "." + extension
+            `documents/${userId}/` + id + "." + extension
           );
           const resp = await uploadedFile.save(buffer, {});
           const [documentUrl] = await uploadedFile.getSignedUrl({
@@ -382,6 +385,7 @@ exports.uploadDocuments = async (req, res) => {
           );
 
           documents.push({
+            id: id,
             documentName: file.originalname,
             documentType: (doc && doc.documentType) || "",
             dateAdded: (doc && doc.dateAdded) || "",
@@ -416,10 +420,9 @@ exports.uploadDocuments = async (req, res) => {
 
 exports.deleteDocument = async (req, res) => {
   try {
-    const { documentName } = req.body;
+    const { docId } = req.body;
     const userId = req.user.uid;
-    console.log(documentName);
-    if (!documentName) {
+    if (!docId) {
       return res.status(403).json({ error: "Missing field required" });
     }
     const userDoc = await firebaseDb.collection("users").doc(userId).get();
@@ -430,11 +433,9 @@ exports.deleteDocument = async (req, res) => {
       return res.status(403).json({ error: "User has no documents" });
     }
     firebaseBucket.deleteFiles({
-      prefix: `documents/${userId}/` + documentName,
+      prefix: `documents/${userId}/` + docId,
     });
-    const filteredArr = documents.filter(
-      (doc) => doc.documentName !== documentName
-    );
+    const filteredArr = documents.filter((doc) => doc.id !== docId);
 
     const result = await firebaseDb
       .collection("users")

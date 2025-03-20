@@ -29,11 +29,11 @@ exports.getAllDocuments = async (req, res) => {
 
 exports.updateStatus = async (req, res) => {
   try {
-    const { documentName, status, rejectionReason } = req.body;
+    const { docId, status, rejectionReason } = req.body;
     const { userId } = req.params;
-    console.log(userId, status, documentName);
+    console.log(userId, status, docId);
 
-    if (!documentName) {
+    if (!docId) {
       return res.status(403).json({ error: "Missing field required" });
     }
     const userDoc = await firebaseDb.collection("users").doc(userId).get();
@@ -44,9 +44,7 @@ exports.updateStatus = async (req, res) => {
       return res.status(403).json({ error: "User has no documents" });
     }
 
-    const documentObj = documents.find(
-      (doc) => doc.documentName === documentName
-    );
+    const documentObj = documents.find((doc) => doc.id === docId);
     documentObj.status = status;
     if (rejectionReason) {
       documentObj.rejectionReason = rejectionReason;
