@@ -1,0 +1,96 @@
+const express = require("express");
+const router = express.Router();
+const adminChatController = require("../controllers/adminChatController");
+const passport = require("passport");
+
+// Debug middleware
+const authDebugMiddleware = (req, res, next) => {
+  console.log('Auth Debug - Headers:', {
+    authorization: req.headers.authorization,
+    contentType: req.headers['content-type']
+  });
+  
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "No authorization header" });
+  }
+
+  passport.authenticate('jwt', { session: false }, (err, user, info) => {
+    console.log('Auth Debug - Passport Result:', {
+      error: err,
+      user: user ? {
+        uid: user.uid,
+        email: user.email,
+        roles: user.roles
+      } : null,
+      info
+    });
+
+    if (err) {
+      return res.status(500).json({ error: "Authentication error", details: err.message });
+    }
+    if (!user) {
+      return res.status(401).json({ error: "Authentication failed", details: info?.message });
+    }
+
+    req.user = user;
+    next();
+  })(req, res, next);
+};
+
+// Create new chat (admin-admin or admin-client)
+router.post(
+  "/adminChats",
+  authDebugMiddleware,
+  adminChatController.createAdminChat
+);
+
+// Get all chats for the authenticated user
+router.get(
+  "/adminChats",
+  authDebugMiddleware,
+  adminChatController.getChats
+);
+
+// Update chat
+router.put(
+  "/adminChats/:chatId",
+  authDebugMiddleware,
+  adminChatController.updateAdminChat
+);
+
+// Send message in chat
+router.post(
+  "/adminChats/:chatId/messages",
+  authDebugMiddleware,
+  adminChatController.sendAdminMessage
+);
+
+// Mark messages as read
+router.put(
+  "/adminChats/:chatId/read",
+  authDebugMiddleware,
+  adminChatController.markMessagesAsRead
+);
+
+// Archive chat
+router.put(
+  "/adminChats/:chatId/archive",
+  authDebugMiddleware,
+  adminChatController.archiveChat
+);
+
+// Log user action in chat
+router.post(
+  "/adminChats/:chatId/actions",
+  authDebugMiddleware,
+  adminChatController.logUserAction
+);
+
+// Get messages for a specific chat
+router.get(
+  "/adminChats/:chatId/messages",
+  authDebugMiddleware,
+  adminChatController.getChatMessages
+);
+
+module.exports = router; 
