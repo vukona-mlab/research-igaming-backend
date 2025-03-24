@@ -15,4 +15,10 @@ router.post(
   notificationsController.sendNotification
 );
 
+router.delete(
+  "/admin-notifications/:id",
+  passport.authenticate("jwt", { session: false }),
+  notificationsController.deleteNotification
+);
+
 module.exports = router;
