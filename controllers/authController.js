@@ -603,73 +603,66 @@ exports.deleteAdmin = async (req, res) => {
 
 // Admin login
 exports.adminLogin = async (req, res) => {
-  const { email, password } = req.body;
-
   try {
-    // Get user by email
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    // Get user from Firebase Auth
     const userRecord = await firebaseAuth.getUserByEmail(email);
 
-    // Get user profile from Firestore
-    const userDoc = await firebaseDb
-      .collection("admins")
-      .doc(userRecord.uid)
-      .get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: "User profile not found" });
+    // Check if user exists in admins collection
+    const adminDoc = await firebaseDb.collection('admins').doc(userRecord.uid).get();
+    
+    // If not in admins collection, check users collection
+    if (!adminDoc.exists) {
+      const userDoc = await firebaseDb.collection('users').doc(userRecord.uid).get();
+      
+      if (!userDoc.exists) {
+        // Create user document if it doesn't exist
+        await firebaseDb.collection('users').doc(userRecord.uid).set({
+          email: email,
+          roles: ['admin'],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          activeStatus: true,
+          lastSeen: new Date()
+        });
+      } else if (!userDoc.data().roles.includes('admin')) {
+        return res.status(403).json({ error: "Unauthorized - Admin access only" });
+      }
     }
 
-    // Check if user has admin or super_admin role
-    const userData = userDoc.data();
-    const isAdmin = userData.roles.some((role) =>
-      ["admin", "super_admin"].includes(role)
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        roles: ['admin'],
+        type: 'admin'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
     );
-
-    if (!isAdmin) {
-      return res
-        .status(403)
-        .json({ error: "Access denied. Admin privileges required." });
-    }
-
-    // Update active status
-    await firebaseDb.collection("admins").doc(userRecord.uid).update({
-      activeStatus: true,
-      updatedAt: new Date(),
-      lastSeen: new Date(),
-    });
-
-    // Generate JWT token with role information
-    const payload = {
-      uid: userRecord.uid,
-      roles: userData.roles,
-    };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
 
     res.status(200).json({
       message: "Admin login successful",
       token: `Bearer ${token}`,
       user: {
         uid: userRecord.uid,
-        email: userData.email,
-        name: userData.name,
-        surname: userData.surname,
-        displayName: userData.displayName,
-        roles: userData.roles,
-        isSuper: userData.roles.includes("super_admin"),
-      },
+        email: userRecord.email,
+        roles: ['admin']
+      }
     });
+
   } catch (error) {
-    console.error("Admin login error:", error);
-    // Improved error handling
-    let errorMessage = "Invalid email or password";
-    if (error.code === "auth/user-not-found") {
-      errorMessage = "User not found";
-    } else if (error.code === "auth/wrong-password") {
-      errorMessage = "Invalid password";
-    }
-    res.status(401).json({ error: errorMessage });
+    console.error("Admin Login Error:", error);
+    res.status(500).json({
+      error: "Login failed",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
