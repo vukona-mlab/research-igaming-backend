@@ -21,7 +21,7 @@ const zoomRoutes = require("./routes/zoomRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const documentsRoutes = require("./routes/documentsRoutes");
 const adminChatRoutes = require("./routes/adminChatRoutes");
-
+const notificationsRoutes = require("./routes/notificationsRoutes");
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -119,6 +119,7 @@ app.use("/api/zoom", zoomRoutes);
 app.use("/api", clientRoutes);
 app.use("/api", documentsRoutes);
 app.use("/api", adminChatRoutes);
+app.use("/api", notificationsRoutes);
 
 const PORT = process.env.PORT || 8000;
 
