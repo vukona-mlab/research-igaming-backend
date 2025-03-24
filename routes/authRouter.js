@@ -45,8 +45,8 @@ router.get(
 );
 router.put(
   "/users/:userId/update",
-  upload,
-  passport.authenticate("jwt", { session: false }),
+  upload.single('profilePicture'),
+  passport.authenticate('jwt', { session: false }),
   update
 );
 router.delete(
@@ -56,8 +56,8 @@ router.delete(
 );
 router.put(
   "/users/:userId/upload",
-  uploadArray.array("documents", 6),
-  passport.authenticate("jwt", { session: false }),
+  uploadArray.array('documents', 6),
+  passport.authenticate('jwt', { session: false }),
   uploadDocuments
 );
 
@@ -107,6 +107,7 @@ router.get(
 
 router.put(
   '/admin/profile/:adminId',
+  upload.single('profilePicture'),
   passport.authenticate('jwt', { session: false }),
   updateAdminProfile
 );

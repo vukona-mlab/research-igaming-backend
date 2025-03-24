@@ -799,6 +799,32 @@ exports.updateAdminProfile = async (req, res) => {
       return res.status(404).json({ error: "Admin profile not found" });
     }
 
+    // Handle profile picture upload if present
+    if (req.file) {
+      try {
+        const buffer = req.file.buffer;
+        const extension = req.file.originalname.split('.').pop();
+        const fileName = `admin-profile-pictures/${adminId}.${extension}`;
+        const file = firebaseBucket.file(fileName);
+        
+        await file.save(buffer, {
+          metadata: {
+            contentType: req.file.mimetype
+          }
+        });
+        
+        const [url] = await file.getSignedUrl({
+          action: 'read',
+          expires: '03-09-2491'
+        });
+        
+        updateData.profilePicture = url;
+      } catch (error) {
+        console.error('Error uploading profile picture:', error);
+        return res.status(500).json({ error: 'Failed to upload profile picture' });
+      }
+    }
+
     // Remove fields that shouldn't be updated
     const protectedFields = ["roles", "createdAt", "createdBy", "email"];
     protectedFields.forEach((field) => delete updateData[field]);
@@ -815,7 +841,7 @@ exports.updateAdminProfile = async (req, res) => {
         .json({ error: "Name and surname cannot be empty" });
     }
 
-    // 🔹 Validate Date of Birth (YYYY-MM-DD format)
+    // Validate Date of Birth (YYYY-MM-DD format)
     if (updateData.dob && !/^\d{4}-\d{2}-\d{2}$/.test(updateData.dob)) {
       return res
         .status(400)
@@ -839,6 +865,7 @@ exports.updateAdminProfile = async (req, res) => {
       updatedFields: Object.keys(updateData),
     });
   } catch (error) {
+    console.error('Error updating admin profile:', error);
     res.status(400).json({ error: error.message });
   }
 };

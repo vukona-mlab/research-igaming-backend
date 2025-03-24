@@ -11,7 +11,19 @@ const authDebugMiddleware = (req, res, next) => {
   });
   
   if (!req.headers.authorization) {
-    return res.status(401).json({ error: "No authorization header" });
+    return res.status(401).json({ 
+      error: "No authorization header",
+      message: "Please provide a valid authentication token" 
+    });
+  }
+
+  // Extract token and verify format
+  const token = req.headers.authorization;
+  if (!token.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      error: "Invalid token format",
+      message: "Token must start with 'Bearer '" 
+    });
   }
 
   passport.authenticate('jwt', { session: false }, (err, user, info) => {
@@ -26,10 +38,16 @@ const authDebugMiddleware = (req, res, next) => {
     });
 
     if (err) {
-      return res.status(500).json({ error: "Authentication error", details: err.message });
+      return res.status(500).json({ 
+        error: "Authentication error", 
+        details: err.message 
+      });
     }
     if (!user) {
-      return res.status(401).json({ error: "Authentication failed", details: info?.message });
+      return res.status(401).json({ 
+        error: "Authentication failed", 
+        details: info?.message || "Invalid or expired token" 
+      });
     }
 
     req.user = user;
