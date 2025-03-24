@@ -20,6 +20,7 @@ const bankRoutes = require("./routes/bankRoutes");
 const zoomRoutes = require("./routes/zoomRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const documentsRoutes = require("./routes/documentsRoutes");
+const adminChatRoutes = require("./routes/adminChatRoutes");
 
 const app = express();
 app.use(cors());
@@ -117,6 +118,7 @@ app.use("/api", transactionRoutes);
 app.use("/api/zoom", zoomRoutes);
 app.use("/api", clientRoutes);
 app.use("/api", documentsRoutes);
+app.use("/api", adminChatRoutes);
 
 const PORT = process.env.PORT || 8000;
 
