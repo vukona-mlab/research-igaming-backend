@@ -6,6 +6,7 @@ const {
 const jwt = require("jsonwebtoken");
 const { FieldValue } = require("firebase-admin/firestore");
 const { v4: uuidv4 } = require("uuid");
+const axios = require('axios');
 
 // Register user
 exports.register = async (req, res) => {
@@ -610,52 +611,60 @@ exports.adminLogin = async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // Get user from Firebase Auth
-    const userRecord = await firebaseAuth.getUserByEmail(email);
-
-    // Check if user exists in admins collection
-    const adminDoc = await firebaseDb.collection('admins').doc(userRecord.uid).get();
-    
-    // If not in admins collection, check users collection
-    if (!adminDoc.exists) {
-      const userDoc = await firebaseDb.collection('users').doc(userRecord.uid).get();
+    // Verify credentials using Firebase Auth REST API
+    try {
+      const response = await axios.post(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`,
+        {
+          email,
+          password,
+          returnSecureToken: true
+        }
+      );
       
-      if (!userDoc.exists) {
-        // Create user document if it doesn't exist
-        await firebaseDb.collection('users').doc(userRecord.uid).set({
-          email: email,
-          roles: ['admin'],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          activeStatus: true,
-          lastSeen: new Date()
-        });
-      } else if (!userDoc.data().roles.includes('admin')) {
+      const { localId: uid } = response.data;
+
+      // Check if user exists in admins collection
+      const adminDoc = await firebaseDb.collection('admins').doc(uid).get();
+      
+      if (!adminDoc.exists) {
+        console.error('Admin login attempt failed: User not found in admins collection');
         return res.status(403).json({ error: "Unauthorized - Admin access only" });
       }
+
+      const adminData = adminDoc.data();
+      const roles = adminData.roles || [];
+
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          uid,
+          email,
+          roles,
+          type: 'admin'
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.status(200).json({
+        message: "Admin login successful",
+        token: `Bearer ${token}`,
+        user: {
+          uid,
+          email,
+          roles,
+          displayName: adminData.displayName
+        }
+      });
+
+    } catch (authError) {
+      console.error('Admin authentication error:', authError.response?.data || authError);
+      return res.status(401).json({ 
+        error: "Invalid email or password",
+        details: process.env.NODE_ENV === 'development' ? authError.message : undefined
+      });
     }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        uid: userRecord.uid,
-        email: userRecord.email,
-        roles: ['admin'],
-        type: 'admin'
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.status(200).json({
-      message: "Admin login successful",
-      token: `Bearer ${token}`,
-      user: {
-        uid: userRecord.uid,
-        email: userRecord.email,
-        roles: ['admin']
-      }
-    });
 
   } catch (error) {
     console.error("Admin Login Error:", error);
