@@ -499,26 +499,26 @@ exports.createAdmin = async (req, res) => {
   }
 };
 
-// Get all admins (super admin only)
+// Get all admins (super admin and admin only)
 exports.getAllAdmins = async (req, res) => {
   try {
-    // Check if requester is a super admin
+    // Check if requester is a super admin or admin
     const requesterDoc = await firebaseDb
       .collection("admins")
       .doc(req.user.uid)
       .get();
     if (
       !requesterDoc.exists ||
-      !requesterDoc.data().roles.includes("super_admin")
+      (!requesterDoc.data().roles.includes("super_admin") && !requesterDoc.data().roles.includes("admin"))
     ) {
       return res
         .status(403)
-        .json({ error: "Only super admins can view all admins" });
+        .json({ error: "Only admins can view the admin list" });
     }
 
     const adminsSnapshot = await firebaseDb
       .collection("admins")
-      .where("roles", "array-contains", "admin")
+      .where("roles", "in", [["admin"], ["super_admin"]])
       .get();
 
     const admins = [];
@@ -748,12 +748,11 @@ exports.getAdminProfile = async (req, res) => {
 
     const requesterData = requesterDoc.data();
     const isSuperAdmin = requesterData.roles.includes("super_admin");
+    const isAdmin = requesterData.roles.includes("admin");
 
-    // Regular admins can only view their own profile
-    if (!isSuperAdmin && req.user.uid !== adminId) {
-      return res
-        .status(403)
-        .json({ error: "You can only view your own profile" });
+    // Allow access if user is super_admin or admin
+    if (!isSuperAdmin && !isAdmin) {
+      return res.status(403).json({ error: "Access denied - Admin privileges required" });
     }
 
     // Get admin profile
