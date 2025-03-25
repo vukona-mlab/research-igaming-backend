@@ -48,10 +48,22 @@ io.on("connection", (socket) => {
     console.log(`User ${socket.id} joined chat ${chatId}`);
   });
 
+  // Join an admin chat room
+  socket.on("join-admin-chat", (chatId) => {
+    socket.join(`admin-chat-${chatId}`);
+    console.log(`User ${socket.id} joined admin chat ${chatId}`);
+  });
+
   // Leave a chat room
   socket.on("leave-chat", (chatId) => {
     socket.leave(chatId);
     console.log(`User ${socket.id} left chat ${chatId}`);
+  });
+
+  // Leave an admin chat room
+  socket.on("leave-admin-chat", (chatId) => {
+    socket.leave(`admin-chat-${chatId}`);
+    console.log(`User ${socket.id} left admin chat ${chatId}`);
   });
 
   socket.on("active-status-update", async (data) => {

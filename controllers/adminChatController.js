@@ -104,7 +104,7 @@ exports.createAdminChat = async (req, res) => {
     });
 
     // Emit socket event for real-time updates
-    req.app.get('io').emit('admin-chat-created', {
+    req.app.get('io').to(`admin-chat-${newChat.id}`).emit('admin-chat-created', {
       chatId: newChat.id,
       participants: [initiatorId, targetId],
       chatType,
@@ -275,13 +275,21 @@ exports.updateAdminChat = async (req, res) => {
 exports.sendAdminMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { message, type, metadata } = req.body;
-    const senderId = req.user.uid;
+    const { message, type, metadata, senderId, senderName, isAdminChat, senderRole } = req.body;
     const timestamp = new Date();
+
+    console.log('Debug - Message Request:', {
+      chatId,
+      senderId,
+      senderName,
+      isAdminChat,
+      senderRole
+    });
 
     // Verify sender exists and is authorized
     const senderDoc = await firebaseDb.collection("admins").doc(senderId).get();
     if (!senderDoc.exists) {
+      console.error('Debug - Sender not found in admins collection:', senderId);
       return res.status(403).json({ error: "Unauthorized - Admin access only" });
     }
 
@@ -290,11 +298,19 @@ exports.sendAdminMessage = async (req, res) => {
     const chat = await chatRef.get();
 
     if (!chat.exists) {
+      console.error('Debug - Chat not found:', chatId);
       return res.status(404).json({ error: "Chat not found" });
     }
 
     const chatData = chat.data();
+    console.log('Debug - Chat Data:', {
+      participants: chatData.participants,
+      chatType: chatData.chatType,
+      metadata: chatData.metadata
+    });
+
     if (!chatData.participants.includes(senderId)) {
+      console.error('Debug - Sender not in chat participants:', senderId);
       return res.status(403).json({ error: "Unauthorized access to this chat" });
     }
 
@@ -306,8 +322,12 @@ exports.sendAdminMessage = async (req, res) => {
 
     // Get recipient details based on chat type
     const recipientId = chatData.participants.find(id => id !== senderId);
-    let recipientDoc;
+    if (!recipientId) {
+      console.error('Debug - No recipient found in participants:', chatData.participants);
+      return res.status(404).json({ error: "Recipient not found in chat participants" });
+    }
 
+    let recipientDoc;
     if (chatData.chatType === 'admin-admin') {
       recipientDoc = await firebaseDb.collection("admins").doc(recipientId).get();
     } else {
@@ -315,13 +335,17 @@ exports.sendAdminMessage = async (req, res) => {
     }
 
     if (!recipientDoc.exists) {
+      console.error('Debug - Recipient document not found:', {
+        recipientId,
+        collection: chatData.chatType === 'admin-admin' ? 'admins' : 'users'
+      });
       return res.status(404).json({ error: "Recipient not found" });
     }
 
     const newMessage = {
       text: message,
       senderId,
-      senderName: senderDoc.data().displayName || senderDoc.data().email,
+      senderName: senderName || senderDoc.data().displayName || senderDoc.data().email,
       type: type || 'text',
       createdAt: timestamp,
       status: 'sent',
@@ -342,7 +366,7 @@ exports.sendAdminMessage = async (req, res) => {
     });
 
     // Emit socket event with recipient type
-    req.app.get('io').to(chatId).emit('new-admin-message', {
+    req.app.get('io').to(`admin-chat-${chatId}`).emit('new-admin-message', {
       chatId,
       message: newMessage,
       chatType: chatData.chatType,
@@ -398,7 +422,7 @@ exports.markMessagesAsRead = async (req, res) => {
     });
 
     // Emit socket event for real-time read status
-    req.app.get('io').to(chatId).emit('messages-read', {
+    req.app.get('io').to(`admin-chat-${chatId}`).emit('messages-read', {
       chatId,
       userId,
       timestamp
@@ -434,6 +458,13 @@ exports.archiveChat = async (req, res) => {
       archivedAt: timestamp,
       archivedBy: adminId,
       updatedAt: timestamp
+    });
+
+    // Emit socket event for chat archive
+    req.app.get('io').to(`admin-chat-${chatId}`).emit('chat-archived', {
+      chatId,
+      archivedBy: adminId,
+      timestamp
     });
 
     res.status(200).json({ message: "Chat archived successfully" });
