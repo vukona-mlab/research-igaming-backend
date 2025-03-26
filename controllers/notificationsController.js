@@ -20,7 +20,7 @@ exports.getAdminNotifications = async (req, res) => {
   }
 };
 exports.sendNotification = async (req, res) => {
-  const { title, body, deviceToken } = req.body;
+  const { title, body, deviceToken, type } = req.body;
 
   try {
     const message = {
@@ -32,11 +32,17 @@ exports.sendNotification = async (req, res) => {
       token: deviceToken,
     };
 
-    const ref = await firebaseDb
-      .collection("admin-notifications")
-      .add({ ...message.notification, read: false, date: new Date() });
+    const ref = await firebaseDb.collection("admin-notifications").add({
+      ...message.notification,
+      read: false,
+      type: type || "alert",
+      date: new Date(),
+    });
     console.log(ref.id);
-    const updatedMessage = { ...message, data: { id: ref.id } };
+    const updatedMessage = {
+      ...message,
+      data: { id: ref.id, type: type || "alert" },
+    };
     const response = await firebase.messaging().send(updatedMessage);
 
     res.status(200).json({
