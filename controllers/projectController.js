@@ -319,4 +319,31 @@ exports.getProjectByChatId = async (req, res) => {
     console.error("Error fetching project by chat ID:", error);
     res.status(500).json({ error: "Failed to fetch project" });
   }
+};
+
+// Add this function to projectController.js
+exports.getProjectCountsByStatus = async (req, res) => {
+  try {
+    const projectsSnapshot = await firebaseDb.collection("projects").get();
+
+    let counts = {
+      pending: 0,
+      rejected: 0,
+      completed: 0,
+    };
+
+    projectsSnapshot.forEach((doc) => {
+      const projectData = doc.data();
+      const status = projectData.status;
+
+      if (status === "pending") counts.pending++;
+      if (status === "rejected") counts.rejected++;
+      if (status === "completed") counts.completed++;
+    });
+
+    res.status(200).json(counts);
+  } catch (error) {
+    console.error("Error fetching project counts by status:", error);
+    res.status(500).json({ error: "An error occurred while fetching project counts" });
+  }
 }; 
