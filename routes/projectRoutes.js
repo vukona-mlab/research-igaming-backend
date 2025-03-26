@@ -20,4 +20,7 @@ router.delete("/projects/:projectId", projectController.deleteProject);
 router.put("/projects/:projectId/status", projectController.updateProjectStatus);
 router.post("/projects/:projectId/reviews", projectController.addReview);
 
+// New route for project counts by status
+router.get("/projects/status-counts", projectController.getProjectCountsByStatus);
+
 module.exports = router; 
