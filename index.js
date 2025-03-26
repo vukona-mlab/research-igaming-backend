@@ -7,6 +7,7 @@ const serviceRoutes = require("./routes/servicesRouter");
 const freelancerRoutes = require("./routes/freelancerRoutes");
 const testimonialRoutes = require("./routes/testimonialRoutes");
 const chatsRoutes = require("./routes/chatsRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 const { firebaseDb } = require("./config/firebase");
 
@@ -132,6 +133,7 @@ app.use("/api", clientRoutes);
 app.use("/api", documentsRoutes);
 app.use("/api", adminChatRoutes);
 app.use("/api", notificationsRoutes);
+app.use("/api", reviewRoutes);
 
 const PORT = process.env.PORT || 8000;
 
