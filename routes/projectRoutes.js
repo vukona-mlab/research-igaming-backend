@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const projectController = require("../controllers/projectController");
 const passport = require("passport");
+const projectFileUpload = require("../middleware/projectFileUpload");
 
 // Protect all routes with JWT authentication
 router.use(passport.authenticate("jwt", { session: false }));
@@ -13,7 +14,11 @@ router.get("/projects/chat/:chatId", projectController.getProjectByChatId);
 router.post("/projects", projectController.createProject);
 router.get("/projects", projectController.getAllProjects);
 router.get("/projects/:projectId", projectController.getProject);
-router.put("/projects/:projectId", projectController.updateProject);
+router.put(
+  "/projects/:projectId",
+  projectFileUpload.array('files', 10),
+  projectController.updateProject
+);
 router.delete("/projects/:projectId", projectController.deleteProject);
 
 // Additional Routes
