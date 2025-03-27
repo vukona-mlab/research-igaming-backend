@@ -1,5 +1,5 @@
 const { firebaseDb, firebaseBucket } = require("../config/firebase");
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
 
 // Create Project
 exports.createProject = async (req, res) => {
@@ -17,7 +17,15 @@ exports.createProject = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!title || !description || !budget || !deadline || !clientId || !category || !chatId) {
+    if (
+      !title ||
+      !description ||
+      !budget ||
+      !deadline ||
+      !clientId ||
+      !category ||
+      !chatId
+    ) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -40,7 +48,7 @@ exports.createProject = async (req, res) => {
         freelancer: null,
       },
       transactionId: null,
-      paymentStatus: 'pending',
+      paymentStatus: "pending",
       chatId,
       payments: [],
     };
@@ -53,13 +61,15 @@ exports.createProject = async (req, res) => {
         clientId,
         freelancerId,
         amount: budget,
-        status: 'pending',
+        status: "pending",
         createdAt: new Date(),
         updatedAt: new Date(),
-        transactions: []
+        transactions: [],
       };
 
-      const escrowRef = await firebaseDb.collection("escrow").add(escrowAccount);
+      const escrowRef = await firebaseDb
+        .collection("escrow")
+        .add(escrowAccount);
       await projectRef.update({ transactionId: escrowRef.id });
       newProject.transactionId = escrowRef.id;
     }
@@ -87,9 +97,9 @@ exports.getAllProjects = async (req, res) => {
     if (freelancerId) query = query.where("freelancerId", "==", freelancerId);
 
     const snapshot = await query.get();
-    const projects = snapshot.docs.map(doc => ({
+    const projects = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     res.status(200).json({ projects });
@@ -103,17 +113,20 @@ exports.getAllProjects = async (req, res) => {
 exports.getProject = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const projectDoc = await firebaseDb.collection("projects").doc(projectId).get();
+    const projectDoc = await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .get();
 
     if (!projectDoc.exists) {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    res.status(200).json({ 
-      project: { 
-        id: projectDoc.id, 
-        ...projectDoc.data() 
-      } 
+    res.status(200).json({
+      project: {
+        id: projectDoc.id,
+        ...projectDoc.data(),
+      },
     });
   } catch (error) {
     console.error("Error fetching project:", error);
@@ -129,7 +142,10 @@ exports.updateProject = async (req, res) => {
     const userId = req.user.uid;
     const files = req.files;
 
-    const projectDoc = await firebaseDb.collection("projects").doc(projectId).get();
+    const projectDoc = await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .get();
     if (!projectDoc.exists) {
       return res.status(404).json({ error: "Project not found" });
     }
@@ -137,7 +153,9 @@ exports.updateProject = async (req, res) => {
     const project = projectDoc.data();
 
     if (project.clientId !== userId && project.freelancerId !== userId) {
-      return res.status(403).json({ error: "Unauthorized to update this project" });
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to update this project" });
     }
 
     // Remove fields that shouldn't be updated directly
@@ -153,38 +171,38 @@ exports.updateProject = async (req, res) => {
       const uploadedFiles = [];
 
       for (const file of files) {
-        const fileExtension = file.originalname.split('.').pop();
+        const fileExtension = file.originalname.split(".").pop();
         const fileName = `projects/${projectId}/${uuidv4()}.${fileExtension}`;
-        
+
         // Create a new blob in the bucket
         const blob = firebaseBucket.file(fileName);
         const blobStream = blob.createWriteStream({
           metadata: {
-            contentType: file.mimetype
-          }
+            contentType: file.mimetype,
+          },
         });
 
         // Handle errors during upload
         await new Promise((resolve, reject) => {
-          blobStream.on('error', (error) => {
+          blobStream.on("error", (error) => {
             reject(error);
           });
 
-          blobStream.on('finish', async () => {
+          blobStream.on("finish", async () => {
             // Make the file public
             await blob.makePublic();
-            
+
             // Get the public URL
             const publicUrl = `https://storage.googleapis.com/${firebaseBucket.name}/${fileName}`;
-            
+
             uploadedFiles.push({
               url: publicUrl,
               name: file.originalname,
               type: file.mimetype,
               size: file.size,
-              uploadedAt: new Date()
+              uploadedAt: new Date(),
             });
-            
+
             resolve();
           });
 
@@ -199,15 +217,18 @@ exports.updateProject = async (req, res) => {
       updateData.files = [...updateData.files, ...uploadedFiles];
     }
 
-    await firebaseDb.collection("projects").doc(projectId).update({
-      ...updateData,
-      updatedAt: new Date()
-    });
+    await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .update({
+        ...updateData,
+        updatedAt: new Date(),
+      });
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Project updated successfully",
       projectId,
-      updatedFiles: updateData.files
+      updatedFiles: updateData.files,
     });
   } catch (error) {
     console.error("Error updating project:", error);
@@ -222,7 +243,10 @@ exports.deleteProject = async (req, res) => {
     const userId = req.user.uid;
 
     // Get project data
-    const projectDoc = await firebaseDb.collection("projects").doc(projectId).get();
+    const projectDoc = await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .get();
     if (!projectDoc.exists) {
       return res.status(404).json({ error: "Project not found" });
     }
@@ -231,21 +255,23 @@ exports.deleteProject = async (req, res) => {
 
     // Only allow client to delete their own projects
     if (project.clientId !== userId) {
-      return res.status(403).json({ error: "Unauthorized to delete this project" });
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to delete this project" });
     }
 
     // Check if project can be deleted (e.g., not already active)
     if (project.status !== "pending") {
-      return res.status(400).json({ 
-        error: "Cannot delete project that is already active or completed" 
+      return res.status(400).json({
+        error: "Cannot delete project that is already active or completed",
       });
     }
 
     await firebaseDb.collection("projects").doc(projectId).delete();
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Project deleted successfully",
-      projectId 
+      projectId,
     });
   } catch (error) {
     console.error("Error deleting project:", error);
@@ -279,7 +305,7 @@ exports.updateProjectStatus = async (req, res) => {
 
     await projectRef.update({
       status,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     res.status(200).json({ message: "Project status updated successfully" });
@@ -312,7 +338,7 @@ exports.addReview = async (req, res) => {
     }
 
     const project = projectDoc.data();
-    
+
     // Verify user has permission and project is completed
     if (
       (reviewerType === "client" && project.clientId !== userId) ||
@@ -322,8 +348,8 @@ exports.addReview = async (req, res) => {
     }
 
     if (project.status !== "completed") {
-      return res.status(400).json({ 
-        error: "Can only review completed projects" 
+      return res.status(400).json({
+        error: "Can only review completed projects",
       });
     }
 
@@ -331,12 +357,12 @@ exports.addReview = async (req, res) => {
       rating,
       comment,
       userId,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     await projectRef.update({
       [`reviews.${reviewerType}`]: review,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     res.status(200).json({ message: "Review added successfully" });
@@ -350,7 +376,7 @@ exports.addReview = async (req, res) => {
 exports.getProjectByChatId = async (req, res) => {
   try {
     const { chatId } = req.params;
-    
+
     // Query projects collection for a project with matching chatId
     const projectsSnapshot = await firebaseDb
       .collection("projects")
@@ -359,13 +385,15 @@ exports.getProjectByChatId = async (req, res) => {
       .get();
 
     if (projectsSnapshot.empty) {
-      return res.status(404).json({ message: "No project found for this chat" });
+      return res
+        .status(404)
+        .json({ message: "No project found for this chat" });
     }
 
     const projectDoc = projectsSnapshot.docs[0];
     const project = {
       id: projectDoc.id,
-      ...projectDoc.data()
+      ...projectDoc.data(),
     };
 
     res.status(200).json({ project });
@@ -398,6 +426,113 @@ exports.getProjectCountsByStatus = async (req, res) => {
     res.status(200).json(counts);
   } catch (error) {
     console.error("Error fetching project counts by status:", error);
-    res.status(500).json({ error: "An error occurred while fetching project counts" });
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching project counts" });
   }
-}; 
+};
+
+exports.addProjectDocuments = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const updateData = req.body;
+    const userId = req.user.uid;
+    const files = req.files;
+
+    const projectDoc = await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .get();
+    if (!projectDoc.exists) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const project = projectDoc.data();
+
+    if (project.clientId !== userId && project.freelancerId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to update this project" });
+    }
+
+    // Remove fields that shouldn't be updated directly
+    delete updateData.id;
+    delete updateData.createdAt;
+    delete updateData.clientId;
+    delete updateData.reviews;
+    delete updateData.transactionId;
+    delete updateData.payments;
+
+    // Handle file uploads if any
+    if (files && files.length > 0) {
+      const uploadedFiles = [];
+
+      for (const file of files) {
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `projects/${projectId}/${uuidv4()}.${fileExtension}`;
+
+        // Create a new blob in the bucket
+        const blob = firebaseBucket.file(fileName);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+
+        // Handle errors during upload
+        await new Promise((resolve, reject) => {
+          blobStream.on("error", (error) => {
+            reject(error);
+          });
+
+          blobStream.on("finish", async () => {
+            // Make the file public
+            await blob.makePublic();
+
+            // Get the public URL
+            const publicUrl = `https://storage.googleapis.com/${firebaseBucket.name}/${fileName}`;
+
+            uploadedFiles.push({
+              url: publicUrl,
+              name: file.originalname,
+              type: file.mimetype,
+              size: file.size,
+              uploadedAt: new Date(),
+            });
+
+            resolve();
+          });
+
+          blobStream.end(file.buffer);
+        });
+      }
+
+      // Add uploaded files to project data
+      if (!updateData.docs) {
+        if (!project.docs) {
+          updateData.docs = [];
+        } else {
+          updateData.docs = [...project.docs];
+        }
+      }
+      updateData.docs = [...updateData.docs, ...uploadedFiles];
+    }
+
+    await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .update({
+        ...updateData,
+        updatedAt: new Date(),
+      });
+
+    res.status(200).json({
+      message: "Project updated successfully",
+      projectId,
+      updatedDocs: updateData.docs,
+    });
+  } catch (error) {
+    console.error("Error updating project:", error);
+    res.status(500).json({ error: "Failed to update project" });
+  }
+};
