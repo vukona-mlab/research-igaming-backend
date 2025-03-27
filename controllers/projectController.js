@@ -1,4 +1,5 @@
-const { firebaseDb } = require("../config/firebase");
+const { firebaseDb, firebaseBucket } = require("../config/firebase");
+const { v4: uuidv4 } = require('uuid');
 
 // Create Project
 exports.createProject = async (req, res) => {
@@ -126,6 +127,7 @@ exports.updateProject = async (req, res) => {
     const { projectId } = req.params;
     const updateData = req.body;
     const userId = req.user.uid;
+    const files = req.files;
 
     const projectDoc = await firebaseDb.collection("projects").doc(projectId).get();
     if (!projectDoc.exists) {
@@ -146,6 +148,57 @@ exports.updateProject = async (req, res) => {
     delete updateData.transactionId;
     delete updateData.payments;
 
+    // Handle file uploads if any
+    if (files && files.length > 0) {
+      const uploadedFiles = [];
+
+      for (const file of files) {
+        const fileExtension = file.originalname.split('.').pop();
+        const fileName = `projects/${projectId}/${uuidv4()}.${fileExtension}`;
+        
+        // Create a new blob in the bucket
+        const blob = firebaseBucket.file(fileName);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype
+          }
+        });
+
+        // Handle errors during upload
+        await new Promise((resolve, reject) => {
+          blobStream.on('error', (error) => {
+            reject(error);
+          });
+
+          blobStream.on('finish', async () => {
+            // Make the file public
+            await blob.makePublic();
+            
+            // Get the public URL
+            const publicUrl = `https://storage.googleapis.com/${firebaseBucket.name}/${fileName}`;
+            
+            uploadedFiles.push({
+              url: publicUrl,
+              name: file.originalname,
+              type: file.mimetype,
+              size: file.size,
+              uploadedAt: new Date()
+            });
+            
+            resolve();
+          });
+
+          blobStream.end(file.buffer);
+        });
+      }
+
+      // Add uploaded files to project data
+      if (!updateData.files) {
+        updateData.files = [];
+      }
+      updateData.files = [...updateData.files, ...uploadedFiles];
+    }
+
     await firebaseDb.collection("projects").doc(projectId).update({
       ...updateData,
       updatedAt: new Date()
@@ -153,7 +206,8 @@ exports.updateProject = async (req, res) => {
 
     res.status(200).json({ 
       message: "Project updated successfully",
-      projectId
+      projectId,
+      updatedFiles: updateData.files
     });
   } catch (error) {
     console.error("Error updating project:", error);

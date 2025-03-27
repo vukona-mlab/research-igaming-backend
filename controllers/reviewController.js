@@ -99,3 +99,35 @@ exports.getReviews = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch reviews" });
   }
 };
+
+// update review status
+
+exports.updateReviewStatus = async (req, res) => {
+  try {
+    const { reviewId, status } = req.body;
+
+    if (!reviewId || !status) {
+      return res.status(400).json({ error: "Review ID and status are required" });
+    }
+
+    if (!["Approved", "Rejected"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const reviewRef = firebaseDb.collection("reviews").doc(reviewId);
+    const reviewSnapshot = await reviewRef.get();
+
+    if (!reviewSnapshot.exists) {
+      return res.status(404).json({ error: "Review not found" });
+    }
+
+    await reviewRef.update({ status });
+
+    res.status(200).json({ message: `Review status updated to ${status}` });
+  } catch (error) {
+    console.error("Error updating review status:", error);
+    res.status(500).json({ error: "Failed to update review status" });
+  }
+};
+
+// ... existing code ...

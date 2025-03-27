@@ -12,4 +12,10 @@ router.post(
   reviewController.createReview
 );
 
+router.patch(
+  "/reviews/status",
+  passport.authenticate("jwt", { session: false }),
+  reviewController.updateReviewStatus
+);
+
 module.exports = router;
