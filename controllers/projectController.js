@@ -536,3 +536,81 @@ exports.addProjectDocuments = async (req, res) => {
     res.status(500).json({ error: "Failed to update project" });
   }
 };
+
+exports.uploadProjectPicture = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.uid;
+    const files = req.files;
+
+    const projectDoc = await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .get();
+    if (!projectDoc.exists) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    let project = projectDoc.data();
+
+    if (project.clientId !== userId && project.freelancerId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to update this project" });
+    }
+
+    // Handle file uploads if any
+    if (files && files.length > 0) {
+      const uploadedFiles = [];
+
+      for (const file of files) {
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `projects/${projectId}/${projectId}.${fileExtension}`;
+
+        // Create a new blob in the bucket
+        const blob = firebaseBucket.file(fileName);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+
+        // Handle errors during upload
+        await new Promise((resolve, reject) => {
+          blobStream.on("error", (error) => {
+            reject(error);
+          });
+
+          blobStream.on("finish", async () => {
+            // Make the file public
+            await blob.makePublic();
+
+            // Get the public URL
+            const publicUrl = `https://storage.googleapis.com/${firebaseBucket.name}/${fileName}`;
+
+            project.projectPicture = publicUrl;
+            resolve();
+          });
+
+          blobStream.end(file.buffer);
+        });
+      }
+    }
+
+    await firebaseDb
+      .collection("projects")
+      .doc(projectId)
+      .update({
+        ...project,
+        updatedAt: new Date(),
+      });
+
+    res.status(200).json({
+      message: "Project updated successfully",
+      projectId,
+    });
+  } catch (error) {
+    console.error("Error updating project:", error);
+    res.status(500).json({ error: "Failed to update project" });
+  }
+};

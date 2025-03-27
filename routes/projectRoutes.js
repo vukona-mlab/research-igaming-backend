@@ -24,6 +24,11 @@ router.put(
   projectFileUpload.array("docs", 10),
   projectController.addProjectDocuments
 );
+router.put(
+  "/projects/:projectId/picture",
+  projectFileUpload.array("picture", 1),
+  projectController.uploadProjectPicture
+);
 router.delete("/projects/:projectId", projectController.deleteProject);
 
 // Additional Routes
