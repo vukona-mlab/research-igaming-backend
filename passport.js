@@ -60,6 +60,19 @@ passport.use(
         tokenRoles,
       });
 
+      // Ensure the user has the necessary roles
+      // const requiredRoles = ["admin", "reviewer"]; // Example roles
+      // const hasRequiredRole = storedRoles.some((role) =>
+      //   requiredRoles.includes(role)
+      // );
+
+      // if (!hasRequiredRole) {
+      //   console.log("Passport Debug - User does not have required roles");
+      //   return done(null, false, {
+      //     message: "User does not have required roles",
+      //   });
+      // }
+
       // Create enhanced user object with verified roles
       const enhancedUser = {
         uid: user.uid,
