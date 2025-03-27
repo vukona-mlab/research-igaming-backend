@@ -6,6 +6,8 @@ const reviewController = require("../controllers/reviewController");
 
 // Define the route for getting reviews
 router.get("/reviews", reviewController.getReviews);
+
+// Protected routes
 router.post(
   "/reviews",
   passport.authenticate("jwt", { session: false }),

@@ -60,43 +60,72 @@ exports.getReviews = async (req, res) => {
     let query = firebaseDb.collection("reviews");
 
     if (clientId) {
-      query = query.where("clientId", "==", clientId); // Filter by clientId if provided
+      query = query.where("clientId", "==", clientId);
     }
 
     if (freelancerId) {
-      query = query.where("freelancerId", "==", freelancerId); // Filter by freelancerId if provided
+      query = query.where("freelancerId", "==", freelancerId);
     }
 
+    // First try to get reviews without ordering
+    console.log("Executing Firestore query for reviews...");
     const reviewsSnapshot = await query.get();
+    console.log(`Found ${reviewsSnapshot.size} reviews`);
 
     if (reviewsSnapshot.empty) {
-      return res.status(404).json({ message: "No reviews found" });
+      return res.status(200).json({ reviews: [] }); // Return empty array instead of 404
     }
 
     // Step 2: Map reviews data and add client profile picture
     const reviews = [];
     for (const doc of reviewsSnapshot.docs) {
-      const review = doc.data();
-      review.id = doc.id; // Add document ID to the review data
+      try {
+        const review = doc.data();
+        review.id = doc.id; // Add document ID to the review data
 
-      // Fetch client profile picture from Firestore
-      const clientRef = firebaseDb.collection("clients").doc(review.clientId);
-      const clientSnapshot = await clientRef.get();
-      const clientData = clientSnapshot.data();
+        // Fetch client data from Firestore
+        const clientRef = firebaseDb.collection("users").doc(review.clientId);
+        console.log(`Fetching client data for ID: ${review.clientId}`);
+        const clientSnapshot = await clientRef.get();
+        
+        if (!clientSnapshot.exists) {
+          console.log(`Client not found for ID: ${review.clientId}`);
+          review.clientProfilePic = "https://ui-avatars.com/api/?name=U&background=random";
+          review.clientDisplayName = "Anonymous User";
+        } else {
+          const clientData = clientSnapshot.data();
+          review.clientProfilePic = clientData.profilePicture || "https://ui-avatars.com/api/?name=U&background=random";
+          review.clientDisplayName = clientData.displayName || "Anonymous User";
+        }
 
-      // Add profile picture or fallback if not found
-      review.clientProfilePic = clientData
-        ? clientData.profilePicture
-        : "/default-avatar.jpg";
-
-      reviews.push(review);
+        reviews.push(review);
+      } catch (docError) {
+        console.error(`Error processing review document ${doc.id}:`, docError);
+        // Continue with next review even if one fails
+        continue;
+      }
     }
+
+    // Sort reviews by createdAt in memory using the _seconds property
+    reviews.sort((a, b) => {
+      const aSeconds = a.createdAt?._seconds || 0;
+      const bSeconds = b.createdAt?._seconds || 0;
+      return bSeconds - aSeconds; // Sort in descending order (newest first)
+    });
 
     // Step 3: Return the reviews data
     res.status(200).json({ reviews });
   } catch (error) {
     console.error("Error getting reviews:", error);
-    res.status(500).json({ error: "Failed to fetch reviews" });
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    res.status(500).json({ 
+      error: "Failed to fetch reviews",
+      details: error.message 
+    });
   }
 };
 
@@ -130,4 +159,3 @@ exports.updateReviewStatus = async (req, res) => {
   }
 };
 
-// ... existing code ...
