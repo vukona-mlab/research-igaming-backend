@@ -139,7 +139,7 @@ exports.updateReviewStatus = async (req, res) => {
       return res.status(400).json({ error: "Review ID and status are required" });
     }
 
-    if (!["Approved", "Rejected"].includes(status)) {
+    if (!["Approved", "Declined"].includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
 
