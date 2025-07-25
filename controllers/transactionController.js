@@ -9,6 +9,7 @@ const PAYSTACK_API_URL = process.env.PAYSTACK_API_URL;
 const initializeTransaction = async (email, amount) => {
   try {
     console.log({ email, amount });
+    console.log({ PAYSTACK_SECRET_KEY, PAYSTACK_API_URL, email, amount })
     const response = await fetch(`${PAYSTACK_API_URL}/transaction/initialize`, {
       method: "POST",
       headers: {
@@ -38,6 +39,8 @@ const initializeTransaction = async (email, amount) => {
 };
 
 const createPayout = async (recipient_code, amount) => {
+  console.log({ url: PAYSTACK_API_URL});
+  
   try {
     const response = await fetch(`${PAYSTACK_API_URL}/transfer`, {
       method: "POST",
@@ -65,8 +68,16 @@ const createPayout = async (recipient_code, amount) => {
 
 const createTransaction = async (req, res) => {
   const { clientId, freelancerId, amount, clientEmail, projectId } = req.body;
+  console.log({ body: req.body });
+  console.log({ user: req.user});
+  const { email } = req.user
+
+  console.log({ email });
+  
+  
+  
   try {
-    const paymentResponse = await initializeTransaction(clientEmail, amount);
+    const paymentResponse = await initializeTransaction(email, amount);
 
     const clientRef = firebaseDb.collection("users").doc(clientId);
     const transactionRef = clientRef

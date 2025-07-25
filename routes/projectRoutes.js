@@ -8,39 +8,40 @@ const projectFileUpload = require("../middleware/projectFileUpload");
 router.use(passport.authenticate("jwt", { session: false }));
 
 // Move the chat route before the generic routes with :projectId parameter
-router.get("/projects/chat/:chatId", projectController.getProjectByChatId);
+router.get("/chat/:chatId", projectController.getProjectByChatId);
 
 // CRUD Routes
-router.post("/projects", projectController.createProject);
-router.get("/projects", projectController.getAllProjects);
-router.get("/projects/:projectId", projectController.getProject);
+router.post("/", projectController.createProject);
+router.get("/", projectController.getAllProjects);
+router.get("/:clientId", projectController.getClientProjects)
+router.get("/:projectId", projectController.getProject);
 router.put(
-  "/projects/:projectId",
+  "/:projectId",
   projectFileUpload.array("files", 10),
   projectController.updateProject
 );
 router.put(
-  "/projects/:projectId/docs",
+  "/:projectId/docs",
   projectFileUpload.array("docs", 10),
   projectController.addProjectDocuments
 );
 router.put(
-  "/projects/:projectId/picture",
+  "/:projectId/picture",
   projectFileUpload.array("picture", 1),
   projectController.uploadProjectPicture
 );
-router.delete("/projects/:projectId", projectController.deleteProject);
+router.delete("/:projectId", projectController.deleteProject);
 
 // Additional Routes
 router.put(
-  "/projects/:projectId/status",
+  "/:projectId/status",
   projectController.updateProjectStatus
 );
-router.post("/projects/:projectId/reviews", projectController.addReview);
+router.post("/:projectId/reviews", projectController.addReview);
 
 // New route for project counts by status
 router.get(
-  "/projects/status-counts",
+  "/status-counts",
   projectController.getProjectCountsByStatus
 );
 

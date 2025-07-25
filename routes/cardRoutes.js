@@ -5,7 +5,7 @@ const cardController = require('../controllers/cardController');
 const { firebaseDb } = require("../config/firebase");
 
 // Test route to verify database connection
-router.get('/cards/test-connection', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.get('/test-connection', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const userId = req.user.uid;
     console.log('Testing connection for user:', userId);
@@ -36,9 +36,9 @@ router.get('/cards/test-connection', passport.authenticate('jwt', { session: fal
 router.use(passport.authenticate('jwt', { session: false }));
 
 // CRUD routes for cards
-router.post('/cards', cardController.addCard);
-router.get('/cards', cardController.getCards);
-router.put('/cards/:cardId', cardController.updateCard);
-router.delete('/cards/:cardId', cardController.deleteCard);
+router.post('/', cardController.addCard);
+router.get('/', cardController.getCards);
+router.put('/:cardId', cardController.updateCard);
+router.delete('/:cardId', cardController.deleteCard);
 
 module.exports = router; 

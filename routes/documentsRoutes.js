@@ -4,12 +4,12 @@ const passport = require("passport");
 const documentsController = require("../controllers/documentsController");
 
 router.get(
-  "/documents",
+  "/",
   passport.authenticate("jwt", { session: false }),
   documentsController.getAllDocuments
 );
 router.put(
-  "/documents/:userId/update-status",
+  "/:userId/update-status",
   passport.authenticate("jwt", { session: false }),
   documentsController.updateStatus
 );

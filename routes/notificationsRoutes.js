@@ -4,25 +4,25 @@ const notificationsController = require("../controllers/notificationsController"
 const passport = require("passport");
 
 router.get(
-  "/admin-notifications",
+  "/",
   passport.authenticate("jwt", { session: false }),
 
   notificationsController.getAdminNotifications
 );
 router.post(
-  "/admin-notifications",
+  "/",
   passport.authenticate("jwt", { session: false }),
   notificationsController.sendNotification
 );
 
 router.delete(
-  "/admin-notifications/:id",
+  "/:id",
   passport.authenticate("jwt", { session: false }),
   notificationsController.deleteNotification
 );
 
 router.put(
-  "/admin-notifications/:id",
+  "/:id",
   passport.authenticate("jwt", { session: false }),
   notificationsController.updateReadStatus
 );

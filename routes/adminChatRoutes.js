@@ -57,56 +57,56 @@ const authDebugMiddleware = (req, res, next) => {
 
 // Create new chat (admin-admin or admin-client)
 router.post(
-  "/adminChats",
+  "/",
   authDebugMiddleware,
   adminChatController.createAdminChat
 );
 
 // Get all chats for the authenticated user
 router.get(
-  "/adminChats",
+  "/",
   authDebugMiddleware,
   adminChatController.getChats
 );
 
 // Update chat
 router.put(
-  "/adminChats/:chatId",
+  "/:chatId",
   authDebugMiddleware,
   adminChatController.updateAdminChat
 );
 
 // Send message in chat
 router.post(
-  "/adminChats/:chatId/messages",
+  "/:chatId/messages",
   authDebugMiddleware,
   adminChatController.sendAdminMessage
 );
 
 // Mark messages as read
 router.put(
-  "/adminChats/:chatId/read",
+  "/:chatId/read",
   authDebugMiddleware,
   adminChatController.markMessagesAsRead
 );
 
 // Archive chat
 router.put(
-  "/adminChats/:chatId/archive",
+  "/:chatId/archive",
   authDebugMiddleware,
   adminChatController.archiveChat
 );
 
 // Log user action in chat
 router.post(
-  "/adminChats/:chatId/actions",
+  "/:chatId/actions",
   authDebugMiddleware,
   adminChatController.logUserAction
 );
 
 // Get messages for a specific chat
 router.get(
-  "/adminChats/:chatId/messages",
+  "/:chatId/messages",
   authDebugMiddleware,
   adminChatController.getChatMessages
 );

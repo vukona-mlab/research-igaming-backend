@@ -6,7 +6,7 @@ const {
 
 const router = express.Router();
 
-router.get("/testimonials", getTestimonials);
-router.post("/testimonials", addTestimonial);
+router.get("/", getTestimonials);
+router.post("/", addTestimonial);
 
 module.exports = router;

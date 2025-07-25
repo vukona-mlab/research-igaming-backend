@@ -13,12 +13,12 @@ const opts = {
 passport.use(
   new Strategy(opts, async (jwt_payload, done) => {
     try {
-      console.log("Passport Debug - JWT Payload:", jwt_payload);
+      // console.log("Passport Debug - JWT Payload:", jwt_payload);
 
       // Check token expiration
       const now = Math.floor(Date.now() / 1000);
       if (jwt_payload.exp && jwt_payload.exp < now) {
-        console.log("Passport Debug - Token expired");
+        // console.log("Passport Debug - Token expired");
         return done(null, false, { message: "Token expired" });
       }
 
@@ -26,7 +26,7 @@ passport.use(
       const user = await firebaseAuth.getUser(jwt_payload.uid);
 
       if (!user) {
-        console.log("Passport Debug - User not found in Firebase Auth");
+        // console.log("Passport Debug - User not found in Firebase Auth");
         return done(null, false, { message: "User not found" });
       }
 
@@ -45,9 +45,9 @@ passport.use(
       } else if (userDoc.exists) {
         userData = userDoc.data();
       } else {
-        console.log(
-          "Passport Debug - User document not found in either collection"
-        );
+        // console.log(
+        //   "Passport Debug - User document not found in either collection"
+        // );
         return done(null, false, { message: "User document not found" });
       }
 
@@ -55,10 +55,10 @@ passport.use(
       const storedRoles = userData?.roles || [];
       const tokenRoles = jwt_payload.roles || [];
 
-      console.log("Passport Debug - Comparing roles:", {
-        storedRoles,
-        tokenRoles,
-      });
+      // console.log("Passport Debug - Comparing roles:", {
+      //   storedRoles,
+      //   tokenRoles,
+      // });
 
       // Ensure the user has the necessary roles
       // const requiredRoles = ["admin", "reviewer"]; // Example roles
@@ -82,10 +82,10 @@ passport.use(
         customData: userData,
       };
 
-      console.log("Passport Debug - Enhanced User:", enhancedUser);
+      // console.log("Passport Debug - Enhanced User:", enhancedUser);
       return done(null, enhancedUser);
     } catch (error) {
-      console.error("Error in passport strategy:", error);
+      // console.error("Error in passport strategy:", error);
       return done(error, false);
     }
   })

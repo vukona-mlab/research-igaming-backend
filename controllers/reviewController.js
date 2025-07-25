@@ -129,6 +129,10 @@ exports.getReviews = async (req, res) => {
   }
 };
 
+exports.get = () => {
+  
+}
+
 // update review status
 
 exports.updateReviewStatus = async (req, res) => {

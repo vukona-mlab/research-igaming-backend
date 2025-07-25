@@ -27,5 +27,6 @@ firebase.initializeApp({
 const firebaseAuth = firebase.auth();
 const firebaseDb = firebase.firestore();
 const firebaseBucket = firebase.storage().bucket();
+const messaging = firebase.messaging()
 
-module.exports = { firebase, firebaseAuth, firebaseDb, firebaseBucket };
+module.exports = { firebase, firebaseAuth, firebaseDb, firebaseBucket, messaging };

@@ -1,5 +1,18 @@
 const { firebaseDb } = require("../config/firebase");
 
+exports.getFreelancer = async(req, res) => {
+    const { freelancerId } = req.params
+  console.log({ freelancerId });
+  try {
+    const query = firebaseDb.collection("users").doc(freelancerId)
+    
+    const freelancer = (await query.get()).data()
+    res.status(200).json({ freelancer })
+  } catch (error) {
+    res.status(500).json({ message: "Server error" })
+  }
+} 
+
 // Get all users with the "freelancer" role and support pagination
 exports.getFreelancers = async (req, res) => {
   try {
@@ -47,9 +60,31 @@ exports.getFreelancers = async (req, res) => {
       .json({ error: "An error occurred while fetching freelancers" });
   }
 };
-
-// Get freelancers and their associated projects with pagination
 exports.getFreelancerProjects = async (req, res) => {
+  console.log('in freelancer projects');
+  
+  const { freelancerId } = req.params
+  console.log({ freelancerId });
+
+  const query = firebaseDb.collection('projects')
+    .where("freelancerId", "==", freelancerId)
+  
+  const result = await query.get()
+  const freelancerProjects = result.docs.map((doc) => ({
+    ...doc.data(),
+    id: doc.id,
+    uid: doc.id,
+  }))
+  res.status(200).json({ projects: freelancerProjects })
+  
+}
+// Get freelancers and their associated projects with pagination
+exports.getFreelancersProjects = async (req, res) => {
+  console.log("n freelancers projects");
+  
+  const { freelancerId } = req.params
+  console.log({ freelancerId });
+
   try {
     // Get the page number and page size from query parameters (default pageSize to 30)
     const pageSize = parseInt(req.query.pageSize) || 30;
@@ -119,6 +154,10 @@ exports.getFreelancerProjects = async (req, res) => {
 
 // Get all projects
 exports.getAllProjects = async (req, res) => {
+  const { freelancerId, clientId } = req.params
+  console.log({ freelancerId, clientId });
+  console.log('getting projects');
+
   try {
     const projectsSnapshot = await firebaseDb.collection("projects").get();
 

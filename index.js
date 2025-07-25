@@ -26,6 +26,9 @@ const clientRoutes = require("./routes/clientRoutes");
 const documentsRoutes = require("./routes/documentsRoutes");
 const adminChatRoutes = require("./routes/adminChatRoutes");
 const notificationsRoutes = require("./routes/notificationsRoutes");
+const bankAccountRoutes = require("./routes/bankAccountRoutes");
+const { sendPushNotification } = require("./firebase-messaging");
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -106,6 +109,7 @@ io.on("connection", (socket) => {
       status,
       message,
       timestamp: new Date(),
+      
     });
   });
 
@@ -123,24 +127,29 @@ require("./passport"); // Make sure passport is configured
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api", freelancerRoutes);
-app.use("/api", testimonialRoutes);
+app.use("/api", freelancerRoutes); //
+app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/services", serviceRoutes);
-app.use("/api", chatsRoutes);
-app.use("/api", projectRoutes);
-app.use("/api", cardRoutes);
-app.use("/api", bankRoutes);
-app.use("/api", transactionRoutes);
+app.use("/api/chats", chatsRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/cards", cardRoutes);
+app.use("/api/banks", bankRoutes);
+app.use("/api/bank-accounts", bankAccountRoutes)
+app.use("/api", transactionRoutes); //
 app.use("/api/zoom", zoomRoutes);
-app.use("/api", clientRoutes);
-app.use("/api", documentsRoutes);
-app.use("/api", adminChatRoutes);
-app.use("/api", notificationsRoutes);
-app.use("/api", statsRoutes);
-app.use("/api", reviewRoutes);
+app.use("/api", clientRoutes); //
+app.use("/api/documents", documentsRoutes);
+app.use("/api/admin-chats", adminChatRoutes);
+app.use("/api/admin-notifications", notificationsRoutes);
+app.use("/api", statsRoutes); //
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/ba/sec", (req, res) => {
+  res.end({ data: null})
+})
+// app.use("/api/support", supportRoutes)
 
 const PORT = process.env.PORT || 8000;
-
+// sendPushNotification("eYTA6_1yWeCxqOgyH-Ej8j:APA91bGtxkQgBN29EA_epQEs9js_WY4GaTwGF-lIhiT7tOxkZZPU-hFOdJP7t8HzveEp3dC6LbTqaKv7q_RzHDkLjoLSVkjJDTG5qHqCpgjLCOpn4Vnm8GI", "Hi there", "I just wanted to say hi")
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

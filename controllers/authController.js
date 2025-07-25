@@ -90,7 +90,7 @@ exports.getProfile = async (req, res) => {
 
 // Login user
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, deviceToken } = req.body;
 
   try {
     // Get user by email
@@ -105,13 +105,30 @@ exports.login = async (req, res) => {
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User profile not found" });
     }
+    const devices = userDoc.data().devices ?? []
+    console.log({ devices });
+    console.log({ includes: devices.includes(deviceToken) });
+    if (deviceToken !== undefined) {
+      if (devices === undefined || !devices.includes(deviceToken)) {
+        console.log('trying to push device');
+        console.log({ deviceToken });
+
+        devices.push(deviceToken)
+        console.log({ devices });
+
+
+      }
+    }
     //update active status
     await firebaseDb.collection("users").doc(userRecord.uid).update({
       activeStatus: true,
       updatedAt: new Date(),
       lastSeen: new Date(),
+      devices: devices
     });
-
+    setImmediate(async () => {
+      firebaseDb.collection("users")
+    })
     // Generate JWT token
     const payload = { uid: userRecord.uid };
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -153,7 +170,10 @@ exports.update = async (req, res) => {
       packages,
       jobTitle,
     } = req.body;
-
+    console.log({ packages });
+    console.log(req.body);
+    
+    
     if (JSON.stringify(req.body) === "{}" && typeof req.file === "undefined") {
       res.status(500).json({ error: "Must have atleast one field to update" });
     }
@@ -176,7 +196,7 @@ exports.update = async (req, res) => {
         });
 
         updateObj.profilePicture = imageUrl;
-      } catch (err) {}
+      } catch (err) { }
     }
     if (name !== "" && typeof name !== "undefined") {
       updateObj.name = name;
@@ -200,14 +220,14 @@ exports.update = async (req, res) => {
       updateObj.bio = bio;
     }
     if (speciality !== "" && typeof speciality !== "undefined") {
-      updateObj.specialities = JSON.parse(speciality);
+      updateObj.specialities = speciality;
     }
     if (categories !== "" && typeof categories !== "undefined") {
       console.log("running c");
-      updateObj.categories = JSON.parse(categories);
+      updateObj.categories = categories;
     }
     if (packages !== "" && typeof packages !== "undefined") {
-      updateObj.packages = JSON.parse(packages);
+      updateObj.packages = packages;
     }
     if (jobTitle !== "" && typeof jobTitle !== "undefined") {
       updateObj.jobTitle = jobTitle;
@@ -219,12 +239,13 @@ exports.update = async (req, res) => {
           .collection("users")
           .doc(userId)
           .update(updateObj);
+          res.status(201).json({ message: "User has been updated succesfully" });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
     }
 
-    res.status(201).json({ message: "User has been updated succesfully" });
+    
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "An error occured during update" });
@@ -234,7 +255,8 @@ exports.update = async (req, res) => {
 // Google Sign In
 exports.googleSignIn = async (req, res) => {
   try {
-    const { idToken, roles } = req.body;
+    const { idToken, roles, deviceToken } = req.body;
+    console.log({ deviceToken });
 
     // Verify the Google ID token
     const credential = await firebaseAuth.verifyIdToken(idToken);
@@ -259,11 +281,29 @@ exports.googleSignIn = async (req, res) => {
           lastSeen: new Date(),
         });
     }
+    const devices = userDoc.data().devices ?? []
+    console.log({ devices });
+    console.log({ includes: devices.includes(deviceToken) });
+    if (deviceToken !== undefined) {
+      if (devices === undefined || !devices.includes(deviceToken)) {
+        console.log('trying to push device');
+        console.log({ deviceToken });
+
+        devices.push(deviceToken)
+        console.log({ devices });
+
+
+      }
+    }
+
+    console.log('checking device');
+    console.log({ devices });
     //update active status
     await firebaseDb.collection("users").doc(uid).update({
       activeStatus: true,
       updatedAt: new Date(),
       lastSeen: new Date(),
+      devices: devices
     });
 
     // Generate JWT token
@@ -621,12 +661,12 @@ exports.adminLogin = async (req, res) => {
           returnSecureToken: true
         }
       );
-      
+
       const { localId: uid } = response.data;
 
       // Check if user exists in admins collection
       const adminDoc = await firebaseDb.collection('admins').doc(uid).get();
-      
+
       if (!adminDoc.exists) {
         console.error('Admin login attempt failed: User not found in admins collection');
         return res.status(403).json({ error: "Unauthorized - Admin access only" });
@@ -660,7 +700,7 @@ exports.adminLogin = async (req, res) => {
 
     } catch (authError) {
       console.error('Admin authentication error:', authError.response?.data || authError);
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: "Invalid email or password",
         details: process.env.NODE_ENV === 'development' ? authError.message : undefined
       });
@@ -814,18 +854,18 @@ exports.updateAdminProfile = async (req, res) => {
         const extension = req.file.originalname.split('.').pop();
         const fileName = `admin-profile-pictures/${adminId}.${extension}`;
         const file = firebaseBucket.file(fileName);
-        
+
         await file.save(buffer, {
           metadata: {
             contentType: req.file.mimetype
           }
         });
-        
+
         const [url] = await file.getSignedUrl({
           action: 'read',
           expires: '03-09-2491'
         });
-        
+
         updateData.profilePicture = url;
       } catch (error) {
         console.error('Error uploading profile picture:', error);
@@ -862,9 +902,8 @@ exports.updateAdminProfile = async (req, res) => {
       .doc(adminId)
       .update({
         ...updateData,
-        displayName: `${updateData.name || adminDoc.data().name} ${
-          updateData.surname || adminDoc.data().surname
-        }`,
+        displayName: `${updateData.name || adminDoc.data().name} ${updateData.surname || adminDoc.data().surname
+          }`,
         updatedAt: new Date(),
       });
 

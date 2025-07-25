@@ -89,6 +89,7 @@ exports.getAllProjects = async (req, res) => {
   try {
     const { status, category, clientId, freelancerId } = req.query;
     let query = firebaseDb.collection("projects");
+    console.log({ clientId });
 
     // Apply filters if provided
     if (status) query = query.where("status", "==", status);
@@ -133,6 +134,21 @@ exports.getProject = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch project" });
   }
 };
+exports.getClientProjects = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const projectsSnapshot = await firebaseDb.collection("projects").where("clientId", '==', clientId).get()
+    const projects = projectsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json({ projects });
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    res.status(500).json({ error: "Failed to fetch projects" });
+  }
+}
 
 // Update Project
 exports.updateProject = async (req, res) => {

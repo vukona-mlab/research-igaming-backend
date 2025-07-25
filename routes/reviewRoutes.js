@@ -5,17 +5,17 @@ const passport = require("passport");
 const reviewController = require("../controllers/reviewController");
 
 // Define the route for getting reviews
-router.get("/reviews", reviewController.getReviews);
+router.get("/", reviewController.get);
 
 // Protected routes
 router.post(
-  "/reviews",
+  "/",
   passport.authenticate("jwt", { session: false }),
   reviewController.createReview
 );
 
 router.patch(
-  "/reviews/status",
+  "/status",
   passport.authenticate("jwt", { session: false }),
   reviewController.updateReviewStatus
 );
