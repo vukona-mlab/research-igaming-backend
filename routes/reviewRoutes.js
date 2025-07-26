@@ -5,7 +5,7 @@ const passport = require("passport");
 const reviewController = require("../controllers/reviewController");
 
 // Define the route for getting reviews
-router.get("/", reviewController.get);
+router.get("/", reviewController.getReviews);
 
 // Protected routes
 router.post(

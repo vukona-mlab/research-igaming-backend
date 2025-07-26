@@ -46,7 +46,7 @@ exports.createProject = async (req, res) => {
       freelancerId: freelancerId || null,
       category,
       requirements: requirements || [],
-      status: "pending",
+      status: !inPlatform ? "approved" : "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
       milestones: [],
@@ -60,7 +60,7 @@ exports.createProject = async (req, res) => {
       chatId: chatId || "",
       payments: [],
       link: link || "",
-      inPlatform: inPlatform || true,
+      inPlatform: inPlatform,
     };
 
     const projectRef = await firebaseDb.collection("projects").add(newProject);
