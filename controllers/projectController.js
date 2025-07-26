@@ -14,19 +14,27 @@ exports.createProject = async (req, res) => {
       category,
       requirements,
       chatId,
+      inPlatform,
+      link,
     } = req.body;
 
     // Validate required fields
-    if (
-      !title ||
-      !description ||
-      !budget ||
-      !deadline ||
-      !clientId ||
-      !category ||
-      !chatId
-    ) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (inPlatform) {
+      if (
+        !title ||
+        !description ||
+        !budget ||
+        !deadline ||
+        !clientId ||
+        !category ||
+        !chatId
+      ) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+    } else {
+      if (!title || !description || !category) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
     }
 
     const newProject = {
@@ -38,7 +46,7 @@ exports.createProject = async (req, res) => {
       freelancerId: freelancerId || null,
       category,
       requirements: requirements || [],
-      status: "pending",
+      status: !inPlatform ? "approved" : "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
       milestones: [],
@@ -49,8 +57,10 @@ exports.createProject = async (req, res) => {
       },
       transactionId: null,
       paymentStatus: "pending",
-      chatId,
+      chatId: chatId || "",
       payments: [],
+      link: link || "",
+      inPlatform: inPlatform,
     };
 
     const projectRef = await firebaseDb.collection("projects").add(newProject);
@@ -137,7 +147,10 @@ exports.getProject = async (req, res) => {
 exports.getClientProjects = async (req, res) => {
   try {
     const { clientId } = req.params;
-    const projectsSnapshot = await firebaseDb.collection("projects").where("clientId", '==', clientId).get()
+    const projectsSnapshot = await firebaseDb
+      .collection("projects")
+      .where("clientId", "==", clientId)
+      .get();
     const projects = projectsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -148,7 +161,7 @@ exports.getClientProjects = async (req, res) => {
     console.error("Error fetching projects:", error);
     res.status(500).json({ error: "Failed to fetch projects" });
   }
-}
+};
 
 // Update Project
 exports.updateProject = async (req, res) => {
@@ -168,7 +181,11 @@ exports.updateProject = async (req, res) => {
 
     const project = projectDoc.data();
 
-    if (project.clientId !== userId && project.freelancerId !== userId) {
+    if (
+      project.inPlatform &&
+      project.clientId !== userId &&
+      project.freelancerId !== userId
+    ) {
       return res
         .status(403)
         .json({ error: "Unauthorized to update this project" });

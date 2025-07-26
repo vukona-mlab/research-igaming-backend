@@ -87,14 +87,17 @@ exports.getReviews = async (req, res) => {
         const clientRef = firebaseDb.collection("users").doc(review.clientId);
         console.log(`Fetching client data for ID: ${review.clientId}`);
         const clientSnapshot = await clientRef.get();
-        
+
         if (!clientSnapshot.exists) {
           console.log(`Client not found for ID: ${review.clientId}`);
-          review.clientProfilePic = "https://ui-avatars.com/api/?name=U&background=random";
+          review.clientProfilePic =
+            "https://ui-avatars.com/api/?name=U&background=random";
           review.clientDisplayName = "Anonymous User";
         } else {
           const clientData = clientSnapshot.data();
-          review.clientProfilePic = clientData.profilePicture || "https://ui-avatars.com/api/?name=U&background=random";
+          review.clientProfilePic =
+            clientData.profilePicture ||
+            "https://ui-avatars.com/api/?name=U&background=random";
           review.clientDisplayName = clientData.displayName || "Anonymous User";
         }
 
@@ -120,18 +123,16 @@ exports.getReviews = async (req, res) => {
     console.error("Error details:", {
       message: error.message,
       stack: error.stack,
-      code: error.code
+      code: error.code,
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to fetch reviews",
-      details: error.message 
+      details: error.message,
     });
   }
 };
 
-exports.get = () => {
-  
-}
+exports.get = () => {};
 
 // update review status
 
@@ -140,7 +141,9 @@ exports.updateReviewStatus = async (req, res) => {
     const { reviewId, status } = req.body;
 
     if (!reviewId || !status) {
-      return res.status(400).json({ error: "Review ID and status are required" });
+      return res
+        .status(400)
+        .json({ error: "Review ID and status are required" });
     }
 
     if (!["Approved", "Declined"].includes(status)) {
@@ -162,4 +165,3 @@ exports.updateReviewStatus = async (req, res) => {
     res.status(500).json({ error: "Failed to update review status" });
   }
 };
-

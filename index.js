@@ -53,30 +53,30 @@ const io = socketIo(server, {
 app.set("io", io);
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  //console.log("User connected:", socket.id);
 
   // Join a chat room
   socket.on("join-chat", (chatId) => {
     socket.join(chatId);
-    console.log(`User ${socket.id} joined chat ${chatId}`);
+    //console.log(`User ${socket.id} joined chat ${chatId}`);
   });
 
   // Join an admin chat room
   socket.on("join-admin-chat", (chatId) => {
     socket.join(`admin-chat-${chatId}`);
-    console.log(`User ${socket.id} joined admin chat ${chatId}`);
+    //console.log(`User ${socket.id} joined admin chat ${chatId}`);
   });
 
   // Leave a chat room
   socket.on("leave-chat", (chatId) => {
     socket.leave(chatId);
-    console.log(`User ${socket.id} left chat ${chatId}`);
+    // console.log(`User ${socket.id} left chat ${chatId}`);
   });
 
   // Leave an admin chat room
   socket.on("leave-admin-chat", (chatId) => {
     socket.leave(`admin-chat-${chatId}`);
-    console.log(`User ${socket.id} left admin chat ${chatId}`);
+    //console.log(`User ${socket.id} left admin chat ${chatId}`);
   });
 
   socket.on("active-status-update", async (data) => {
@@ -115,7 +115,6 @@ io.on("connection", (socket) => {
       status,
       message,
       timestamp: new Date(),
-      
     });
   });
 
@@ -140,7 +139,7 @@ app.use("/api/chats", chatsRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/cards", cardRoutes);
 app.use("/api/banks", bankRoutes);
-app.use("/api/bank-accounts", bankAccountRoutes)
+app.use("/api/bank-accounts", bankAccountRoutes);
 app.use("/api", transactionRoutes); //
 app.use("/api/zoom", zoomRoutes);
 app.use("/api", clientRoutes); //
@@ -151,8 +150,8 @@ app.use("/api", bioRoutes);
 app.use("/api", statsRoutes); //
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/ba/sec", (req, res) => {
-  res.end({ data: null})
-})
+  res.end({ data: null });
+});
 // app.use("/api/support", supportRoutes)
 
 const PORT = process.env.PORT || 8000;
