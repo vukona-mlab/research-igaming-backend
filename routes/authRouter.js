@@ -14,6 +14,7 @@ const {
   deleteDocument,
   createAdmin,
   getAllAdmins,
+  getAllAdminIds,
   updateAdmin,
   deleteAdmin,
   adminLogin,
@@ -45,8 +46,8 @@ router.get(
 );
 router.put(
   "/users/:userId/update",
-  upload.single('profilePicture'),
-  passport.authenticate('jwt', { session: false }),
+  upload.single("profilePicture"),
+  passport.authenticate("jwt", { session: false }),
   update
 );
 router.delete(
@@ -56,8 +57,8 @@ router.delete(
 );
 router.put(
   "/users/:userId/upload",
-  uploadArray.array('documents', 6),
-  passport.authenticate('jwt', { session: false }),
+  uploadArray.array("documents", 6),
+  passport.authenticate("jwt", { session: false }),
   uploadDocuments
 );
 
@@ -70,45 +71,49 @@ router.delete(
 );
 
 // Admin routes
-router.post('/admin/login', adminLogin);
+router.post("/admin/login", adminLogin);
 
 router.post(
-  '/admin/create',
-  passport.authenticate('jwt', { session: false }),
+  "/admin/create",
+  passport.authenticate("jwt", { session: false }),
   createAdmin
 );
 
 router.get(
-  '/admin/all',
-  passport.authenticate('jwt', { session: false }),
+  "/admin/all",
+  passport.authenticate("jwt", { session: false }),
   getAllAdmins
 );
-
+router.get(
+  "/admin/all/public",
+  passport.authenticate("jwt", { session: false }),
+  getAllAdminIds
+);
 router.put(
-  '/admin/:adminId',
-  passport.authenticate('jwt', { session: false }),
+  "/admin/:adminId",
+  passport.authenticate("jwt", { session: false }),
   updateAdmin
 );
 
 router.delete(
-  '/admin/:adminId',
-  passport.authenticate('jwt', { session: false }),
+  "/admin/:adminId",
+  passport.authenticate("jwt", { session: false }),
   deleteAdmin
 );
 
 // Initialize super admin (one-time setup)
-router.post('/admin/initialize', initializeSuperAdmin);
+router.post("/admin/initialize", initializeSuperAdmin);
 
 router.get(
-  '/admin/profile/:adminId',
-  passport.authenticate('jwt', { session: false }),
+  "/admin/profile/:adminId",
+  passport.authenticate("jwt", { session: false }),
   getAdminProfile
 );
 
 router.put(
-  '/admin/profile/:adminId',
-  upload.single('profilePicture'),
-  passport.authenticate('jwt', { session: false }),
+  "/admin/profile/:adminId",
+  upload.single("profilePicture"),
+  passport.authenticate("jwt", { session: false }),
   updateAdminProfile
 );
 

@@ -134,51 +134,108 @@ exports.getUserChats = async (req, res) => {
       .collection("chats")
       .where("participants", "array-contains", userId)
       .get();
+    const adminChats = await firebaseDb
+      .collection("adminChats")
+      .where("participants", "array-contains", userId)
+      .get();
 
-    if (chatsSnapshot.empty) {
+    if (chatsSnapshot.empty && adminChats.empty) {
       return res.status(200).json({ chats: [] });
     }
 
     const chats = [];
-    for (const doc of chatsSnapshot.docs) {
-      const chatData = doc.data();
-      const otherParticipantId = chatData.participants.find(
-        (id) => id !== userId
-      );
+    if (!chatsSnapshot.empty) {
+      for (const doc of chatsSnapshot.docs) {
+        const chatData = doc.data();
+        const otherParticipantId = chatData.participants.find(
+          (id) => id !== userId
+        );
 
-      // Get other participant's data
-      const userDoc = await firebaseDb
-        .collection("users")
-        .doc(otherParticipantId)
-        .get();
+        // Get other participant's data
+        const userDoc = await firebaseDb
+          .collection("users")
+          .doc(otherParticipantId)
+          .get();
 
-      if (userDoc.exists) {
-        const userData = userDoc.data();
-        const lastMessageTimestamp = chatData.lastMessageTimestamp || chatData.updatedAt || chatData.createdAt;
-        
-        chats.push({
-          id: doc.id,
-          ...chatData,
-          participants: [
-            {
-              uid: userId,
-            },
-            {
-              uid: otherParticipantId,
-              name: userData.displayName || "Anonymous",
-              photoURL: userData.profilePicture || null,
-              email: userData.email,
-              activeStatus: userData.activeStatus || false,
-              lastSeen: userData.lastSeen || new Date(),
-            },
-          ],
-          lastMessage: chatData.lastMessage || "",
-          updatedAt: lastMessageTimestamp,
-          timestamp: lastMessageTimestamp?._seconds || Math.floor(lastMessageTimestamp?.getTime() / 1000) || Math.floor(Date.now() / 1000)
-        });
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          const lastMessageTimestamp =
+            chatData.lastMessageTimestamp ||
+            chatData.updatedAt ||
+            chatData.createdAt;
+
+          chats.push({
+            id: doc.id,
+            ...chatData,
+            participants: [
+              {
+                uid: userId,
+              },
+              {
+                uid: otherParticipantId,
+                name: userData.displayName || "Anonymous",
+                photoURL: userData.profilePicture || null,
+                email: userData.email,
+                activeStatus: userData.activeStatus || false,
+                lastSeen: userData.lastSeen || new Date(),
+              },
+            ],
+            lastMessage: chatData.lastMessage || "",
+            updatedAt: lastMessageTimestamp,
+            timestamp:
+              lastMessageTimestamp?._seconds ||
+              Math.floor(lastMessageTimestamp?.getTime() / 1000) ||
+              Math.floor(Date.now() / 1000),
+          });
+        }
       }
     }
+    if (!adminChats.empty) {
+      for (const doc of adminChats.docs) {
+        const chatData = doc.data();
+        const otherParticipantId = chatData.participants.find(
+          (id) => id !== userId
+        );
 
+        // Get other participant's data
+        const userDoc = await firebaseDb
+          .collection("admins")
+          .doc(otherParticipantId)
+          .get();
+
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          const lastMessageTimestamp =
+            chatData.lastMessageTimestamp ||
+            chatData.updatedAt ||
+            chatData.createdAt;
+
+          chats.push({
+            id: doc.id,
+            ...chatData,
+            participants: [
+              {
+                uid: userId,
+              },
+              {
+                uid: otherParticipantId,
+                name: userData.displayName || "Anonymous",
+                photoURL: userData.profilePicture || null,
+                email: userData.email,
+                activeStatus: userData.activeStatus || false,
+                lastSeen: userData.lastSeen || new Date(),
+              },
+            ],
+            lastMessage: chatData.lastMessage || "",
+            updatedAt: lastMessageTimestamp,
+            timestamp:
+              lastMessageTimestamp?._seconds ||
+              Math.floor(lastMessageTimestamp?.getTime() / 1000) ||
+              Math.floor(Date.now() / 1000),
+          });
+        }
+      }
+    }
     // Sort chats by updatedAt timestamp
     chats.sort((a, b) => {
       const timestampA = a.timestamp;
@@ -211,7 +268,9 @@ exports.sendMessage = async (req, res) => {
     // Verify sender is a participant
     const chatData = chatDoc.data();
     if (!chatData.participants.includes(senderId)) {
-      return res.status(403).json({ error: "User is not a participant in this chat" });
+      return res
+        .status(403)
+        .json({ error: "User is not a participant in this chat" });
     }
 
     // Create new message object based on type
@@ -219,11 +278,11 @@ exports.sendMessage = async (req, res) => {
       text: message,
       senderId,
       createdAt: timestamp,
-      type: type || 'text'
+      type: type || "text",
     };
 
     // Add meeting details if it's a zoom meeting message
-    if (type === 'zoom-meeting' && meetingDetails) {
+    if (type === "zoom-meeting" && meetingDetails) {
       newMessage.meetingDetails = meetingDetails;
     }
 
@@ -232,28 +291,33 @@ exports.sendMessage = async (req, res) => {
       messages: [...chatData.messages, newMessage],
       lastMessage: message,
       updatedAt: timestamp,
-      lastMessageTimestamp: timestamp // Add explicit timestamp for last message
+      lastMessageTimestamp: timestamp, // Add explicit timestamp for last message
     });
 
     // Emit socket event for real-time updates
-    req.app.get('io').to(chatId).emit('new-message', {
-      chatId,
-      message: {
-        ...newMessage,
-        createdAt: timestamp // Ensure timestamp is included in socket emission
-      }
-    });
+    req.app
+      .get("io")
+      .to(chatId)
+      .emit("new-message", {
+        chatId,
+        message: {
+          ...newMessage,
+          createdAt: timestamp, // Ensure timestamp is included in socket emission
+        },
+      });
 
-    res.status(200).json({ 
-      message: "Message sent successfully", 
+    res.status(200).json({
+      message: "Message sent successfully",
       messageData: {
         ...newMessage,
-        createdAt: timestamp // Ensure timestamp is included in response
-      }
+        createdAt: timestamp, // Ensure timestamp is included in response
+      },
     });
   } catch (error) {
     console.error("Error sending message:", error);
-    res.status(500).json({ error: "An error occurred while sending the message" });
+    res
+      .status(500)
+      .json({ error: "An error occurred while sending the message" });
   }
 };
 

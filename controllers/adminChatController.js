@@ -4,38 +4,55 @@ const { FieldValue } = require("firebase-admin/firestore");
 // Create or get admin chat
 exports.createAdminChat = async (req, res) => {
   try {
-    const { targetId, chatType, category, priority, tags, initialMessage } = req.body;
+    const { targetId, chatType, category, priority, tags, initialMessage } =
+      req.body;
     const initiatorId = req.user.uid;
     const timestamp = new Date();
 
-    console.log('Auth Debug - User:', {
+    console.log("Auth Debug - User:", {
       uid: req.user.uid,
       email: req.user.email,
       customClaims: req.user.customClaims,
-      roles: req.user.roles
+      roles: req.user.roles,
     });
 
     // Verify initiator is an admin (must be in admins collection)
-    const initiatorAdmin = await firebaseDb.collection("admins").doc(initiatorId).get();
+
+    let initiatorAdmin;
+    if (chatType === "admin-admin" || chatType === "admin-client") {
+      initiatorAdmin = await firebaseDb
+        .collection("admins")
+        .doc(initiatorId)
+        .get();
+    } else {
+      initiatorAdmin = await firebaseDb
+        .collection("users")
+        .doc(initiatorId)
+        .get();
+    }
     if (!initiatorAdmin.exists) {
-      console.log('Auth Debug - Initiator not found in admins collection');
-      return res.status(403).json({ error: "Unauthorized - Admin access only" });
+      console.log(
+        "Auth Debug - Initiator not found in admins or users collection"
+      );
+      return res
+        .status(403)
+        .json({ error: "Unauthorized - Admin access only" });
     }
 
     // Validate chat type
-    if (!['admin-admin', 'admin-client'].includes(chatType)) {
+    if (!["admin-admin", "admin-client", "client-admin"].includes(chatType)) {
       return res.status(400).json({ error: "Invalid chat type" });
     }
 
     // Check target user based on chat type
     let targetUser;
-    if (chatType === 'admin-admin') {
+    if (chatType === "admin-admin" || chatType === "client-admin") {
       // For admin-admin chat, target must be in admins collection
       targetUser = await firebaseDb.collection("admins").doc(targetId).get();
       if (!targetUser.exists) {
         return res.status(404).json({ error: "Target admin not found" });
       }
-    } else {
+    } else if (chatType === "admin-client") {
       // For admin-client chat, target must be in users collection
       targetUser = await firebaseDb.collection("users").doc(targetId).get();
       if (!targetUser.exists) {
@@ -61,20 +78,26 @@ exports.createAdminChat = async (req, res) => {
       return res.status(200).json({
         chatId: existingChat.id,
         message: "Existing chat found",
-        chat: existingChat
+        chat: existingChat,
       });
     }
 
     // Create new chat in adminChats collection
     const newChat = await firebaseDb.collection("adminChats").add({
       participants: [initiatorId, targetId],
-      messages: [{
-        text: initialMessage || `Chat initiated by ${initiatorAdmin.data().displayName || initiatorAdmin.data().email}`,
-        senderId: initiatorId,
-        type: 'system',
-        createdAt: timestamp,
-        readBy: [initiatorId]
-      }],
+      messages: [
+        {
+          text:
+            initialMessage ||
+            `Chat initiated by ${
+              initiatorAdmin.data().displayName || initiatorAdmin.data().email
+            }`,
+          senderId: initiatorId,
+          type: "system",
+          createdAt: timestamp,
+          readBy: [initiatorId],
+        },
+      ],
       chatType,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -86,34 +109,38 @@ exports.createAdminChat = async (req, res) => {
       metadata: {
         initiator: {
           id: initiatorId,
-          name: initiatorAdmin.data().displayName || initiatorAdmin.data().email,
+          name:
+            initiatorAdmin.data().displayName || initiatorAdmin.data().email,
           email: initiatorAdmin.data().email,
-          role: 'admin'
+          role: "admin",
         },
         target: {
           id: targetId,
           name: targetUser.data().displayName || targetUser.data().email,
           email: targetUser.data().email,
-          role: chatType === 'admin-admin' ? 'admin' : 'client'
-        }
+          role: chatType === "admin-admin" ? "admin" : "client",
+        },
       },
       stats: {
         totalMessages: 1,
-        lastActivity: timestamp
-      }
+        lastActivity: timestamp,
+      },
     });
 
     // Emit socket event for real-time updates
-    req.app.get('io').to(`admin-chat-${newChat.id}`).emit('admin-chat-created', {
-      chatId: newChat.id,
-      participants: [initiatorId, targetId],
-      chatType,
-      metadata: {
-        category,
-        priority,
-        tags
-      }
-    });
+    req.app
+      .get("io")
+      .to(`admin-chat-${newChat.id}`)
+      .emit("admin-chat-created", {
+        chatId: newChat.id,
+        participants: [initiatorId, targetId],
+        chatType,
+        metadata: {
+          category,
+          priority,
+          tags,
+        },
+      });
 
     return res.status(201).json({
       chatId: newChat.id,
@@ -129,22 +156,23 @@ exports.createAdminChat = async (req, res) => {
 exports.getChats = async (req, res) => {
   try {
     const userId = req.user.uid;
-    const { 
-      status, 
-      priority, 
-      category, 
+    const {
+      status,
+      priority,
+      category,
       chatType,
       searchTerm,
       tags,
       startDate,
       endDate,
-      sortBy = 'updatedAt',
-      sortOrder = 'desc',
+      sortBy = "updatedAt",
+      sortOrder = "desc",
       page = 1,
-      limit = 20
+      limit = 20,
     } = req.query;
 
-    let query = firebaseDb.collection("adminChats")
+    let query = firebaseDb
+      .collection("adminChats")
       .where("participants", "array-contains", userId);
 
     // Apply filters
@@ -152,7 +180,8 @@ exports.getChats = async (req, res) => {
     if (status) query = query.where("status", "==", status);
     if (priority) query = query.where("priority", "==", priority);
     if (category) query = query.where("category", "==", category);
-    if (tags) query = query.where("tags", "array-contains-any", tags.split(','));
+    if (tags)
+      query = query.where("tags", "array-contains-any", tags.split(","));
 
     // Get the filtered chats
     const chatsSnapshot = await query.get();
@@ -160,8 +189,10 @@ exports.getChats = async (req, res) => {
 
     for (const doc of chatsSnapshot.docs) {
       const chatData = doc.data();
-      const otherParticipantId = chatData.participants.find(id => id !== userId);
-      
+      const otherParticipantId = chatData.participants.find(
+        (id) => id !== userId
+      );
+
       // Get other participant's data
       const otherParticipantDoc = await firebaseDb
         .collection("users")
@@ -181,12 +212,16 @@ exports.getChats = async (req, res) => {
       // Apply search term filter if provided
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = 
-          chatData.messages.some(msg => msg.text.toLowerCase().includes(searchLower)) ||
-          otherParticipantData.displayName?.toLowerCase().includes(searchLower) ||
+        const matchesSearch =
+          chatData.messages.some((msg) =>
+            msg.text.toLowerCase().includes(searchLower)
+          ) ||
+          otherParticipantData.displayName
+            ?.toLowerCase()
+            .includes(searchLower) ||
           otherParticipantData.email?.toLowerCase().includes(searchLower) ||
           chatData.category?.toLowerCase().includes(searchLower) ||
-          chatData.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+          chatData.tags?.some((tag) => tag.toLowerCase().includes(searchLower));
 
         if (!matchesSearch) continue;
       }
@@ -199,9 +234,9 @@ exports.getChats = async (req, res) => {
           name: otherParticipantData.displayName || "Anonymous",
           email: otherParticipantData.email,
           photoURL: otherParticipantData.profilePicture,
-          role: chatData.chatType === 'admin-admin' ? 'admin' : 'client',
-          lastSeen: otherParticipantData.lastSeen
-        }
+          role: chatData.chatType === "admin-admin" ? "admin" : "client",
+          lastSeen: otherParticipantData.lastSeen,
+        },
       });
     }
 
@@ -209,7 +244,7 @@ exports.getChats = async (req, res) => {
     chats.sort((a, b) => {
       const aValue = a[sortBy];
       const bValue = b[sortBy];
-      if (sortOrder === 'desc') {
+      if (sortOrder === "desc") {
         return bValue - aValue;
       }
       return aValue - bValue;
@@ -224,14 +259,14 @@ exports.getChats = async (req, res) => {
     const totalChats = chats.length;
     const totalPages = Math.ceil(totalChats / limit);
 
-    res.status(200).json({ 
+    res.status(200).json({
       chats: paginatedChats,
       pagination: {
         currentPage: page,
         totalPages,
         totalChats,
-        hasMore: endIndex < totalChats
-      }
+        hasMore: endIndex < totalChats,
+      },
     });
   } catch (error) {
     console.error("Error fetching chats:", error);
@@ -261,7 +296,7 @@ exports.updateAdminChat = async (req, res) => {
       ...(status && { status }),
       ...(priority && { priority }),
       ...(category && { category }),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     res.status(200).json({ message: "Chat updated successfully" });
@@ -275,22 +310,32 @@ exports.updateAdminChat = async (req, res) => {
 exports.sendAdminMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { message, type, metadata, senderId, senderName, isAdminChat, senderRole } = req.body;
+    const {
+      message,
+      type,
+      metadata,
+      senderId,
+      senderName,
+      isAdminChat,
+      senderRole,
+    } = req.body;
     const timestamp = new Date();
 
-    console.log('Debug - Message Request:', {
+    console.log("Debug - Message Request:", {
       chatId,
       senderId,
       senderName,
       isAdminChat,
-      senderRole
+      senderRole,
     });
 
     // Verify sender exists and is authorized
     const senderDoc = await firebaseDb.collection("admins").doc(senderId).get();
     if (!senderDoc.exists) {
-      console.error('Debug - Sender not found in admins collection:', senderId);
-      return res.status(403).json({ error: "Unauthorized - Admin access only" });
+      console.error("Debug - Sender not found in admins collection:", senderId);
+      return res
+        .status(403)
+        .json({ error: "Unauthorized - Admin access only" });
     }
 
     // Get chat details
@@ -298,46 +343,67 @@ exports.sendAdminMessage = async (req, res) => {
     const chat = await chatRef.get();
 
     if (!chat.exists) {
-      console.error('Debug - Chat not found:', chatId);
+      console.error("Debug - Chat not found:", chatId);
       return res.status(404).json({ error: "Chat not found" });
     }
 
     const chatData = chat.data();
-    console.log('Debug - Chat Data:', {
+    console.log("Debug - Chat Data:", {
       participants: chatData.participants,
       chatType: chatData.chatType,
-      metadata: chatData.metadata
+      metadata: chatData.metadata,
     });
 
     if (!chatData.participants.includes(senderId)) {
-      console.error('Debug - Sender not in chat participants:', senderId);
-      return res.status(403).json({ error: "Unauthorized access to this chat" });
+      console.error("Debug - Sender not in chat participants:", senderId);
+      return res
+        .status(403)
+        .json({ error: "Unauthorized access to this chat" });
     }
 
     // Support different message types
-    const validTypes = ['text', 'system', 'action', 'note', 'warning', 'document', 'user_action'];
+    const validTypes = [
+      "text",
+      "system",
+      "action",
+      "note",
+      "warning",
+      "document",
+      "user_action",
+    ];
     if (type && !validTypes.includes(type)) {
       return res.status(400).json({ error: "Invalid message type" });
     }
 
     // Get recipient details based on chat type
-    const recipientId = chatData.participants.find(id => id !== senderId);
+    const recipientId = chatData.participants.find((id) => id !== senderId);
     if (!recipientId) {
-      console.error('Debug - No recipient found in participants:', chatData.participants);
-      return res.status(404).json({ error: "Recipient not found in chat participants" });
+      console.error(
+        "Debug - No recipient found in participants:",
+        chatData.participants
+      );
+      return res
+        .status(404)
+        .json({ error: "Recipient not found in chat participants" });
     }
 
     let recipientDoc;
-    if (chatData.chatType === 'admin-admin') {
-      recipientDoc = await firebaseDb.collection("admins").doc(recipientId).get();
+    if (chatData.chatType === "admin-admin") {
+      recipientDoc = await firebaseDb
+        .collection("admins")
+        .doc(recipientId)
+        .get();
     } else {
-      recipientDoc = await firebaseDb.collection("users").doc(recipientId).get();
+      recipientDoc = await firebaseDb
+        .collection("users")
+        .doc(recipientId)
+        .get();
     }
 
     if (!recipientDoc.exists) {
-      console.error('Debug - Recipient document not found:', {
+      console.error("Debug - Recipient document not found:", {
         recipientId,
-        collection: chatData.chatType === 'admin-admin' ? 'admins' : 'users'
+        collection: chatData.chatType === "admin-admin" ? "admins" : "users",
       });
       return res.status(404).json({ error: "Recipient not found" });
     }
@@ -345,40 +411,43 @@ exports.sendAdminMessage = async (req, res) => {
     const newMessage = {
       text: message,
       senderId,
-      senderName: senderName || senderDoc.data().displayName || senderDoc.data().email,
-      type: type || 'text',
+      senderName:
+        senderName || senderDoc.data().displayName || senderDoc.data().email,
+      type: type || "text",
       createdAt: timestamp,
-      status: 'sent',
+      status: "sent",
       metadata: metadata || {},
-      readBy: [senderId]
+      readBy: [senderId],
     };
 
     // Update chat with new message
     await chatRef.update({
       messages: FieldValue.arrayUnion(newMessage),
       lastMessage: message,
-      lastMessageType: type || 'text',
+      lastMessageType: type || "text",
       lastMessageSenderId: senderId,
       updatedAt: timestamp,
-      'stats.totalMessages': FieldValue.increment(1),
-      'stats.lastActivity': timestamp,
-      [`unreadCount.${recipientId}`]: FieldValue.increment(1)
+      "stats.totalMessages": FieldValue.increment(1),
+      "stats.lastActivity": timestamp,
+      [`unreadCount.${recipientId}`]: FieldValue.increment(1),
     });
 
     // Emit socket event with recipient type
-    req.app.get('io').to(`admin-chat-${chatId}`).emit('new-admin-message', {
-      chatId,
-      message: newMessage,
-      chatType: chatData.chatType,
-      recipientId,
-      recipientType: chatData.chatType === 'admin-admin' ? 'admin' : 'client'
-    });
+    req.app
+      .get("io")
+      .to(`admin-chat-${chatId}`)
+      .emit("new-admin-message", {
+        chatId,
+        message: newMessage,
+        chatType: chatData.chatType,
+        recipientId,
+        recipientType: chatData.chatType === "admin-admin" ? "admin" : "client",
+      });
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Message sent successfully",
-      messageData: newMessage
+      messageData: newMessage,
     });
-
   } catch (error) {
     console.error("Error sending admin message:", error);
     res.status(500).json({ error: "Failed to send message" });
@@ -405,11 +474,11 @@ exports.markMessagesAsRead = async (req, res) => {
     }
 
     // Update readBy array for each unread message
-    const updatedMessages = chatData.messages.map(msg => {
+    const updatedMessages = chatData.messages.map((msg) => {
       if (!msg.readBy.includes(userId)) {
         return {
           ...msg,
-          readBy: [...msg.readBy, userId]
+          readBy: [...msg.readBy, userId],
         };
       }
       return msg;
@@ -418,14 +487,14 @@ exports.markMessagesAsRead = async (req, res) => {
     await chatRef.update({
       messages: updatedMessages,
       [`unreadCount.${userId}`]: 0,
-      lastReadAt: timestamp
+      lastReadAt: timestamp,
     });
 
     // Emit socket event for real-time read status
-    req.app.get('io').to(`admin-chat-${chatId}`).emit('messages-read', {
+    req.app.get("io").to(`admin-chat-${chatId}`).emit("messages-read", {
       chatId,
       userId,
-      timestamp
+      timestamp,
     });
 
     res.status(200).json({ message: "Messages marked as read" });
@@ -454,17 +523,17 @@ exports.archiveChat = async (req, res) => {
     }
 
     await chatRef.update({
-      status: 'archived',
+      status: "archived",
       archivedAt: timestamp,
       archivedBy: adminId,
-      updatedAt: timestamp
+      updatedAt: timestamp,
     });
 
     // Emit socket event for chat archive
-    req.app.get('io').to(`admin-chat-${chatId}`).emit('chat-archived', {
+    req.app.get("io").to(`admin-chat-${chatId}`).emit("chat-archived", {
       chatId,
       archivedBy: adminId,
-      timestamp
+      timestamp,
     });
 
     res.status(200).json({ message: "Chat archived successfully" });
@@ -496,26 +565,26 @@ exports.logUserAction = async (req, res) => {
     const actionMessage = {
       text: `Admin action: ${action}`,
       senderId: adminId,
-      type: 'user_action',
+      type: "user_action",
       createdAt: timestamp,
       metadata: {
         action,
         targetUserId,
         details,
-        performedBy: adminId
-      }
+        performedBy: adminId,
+      },
     };
 
     await chatRef.update({
       messages: FieldValue.arrayUnion(actionMessage),
       lastAction: action,
       lastActionTimestamp: timestamp,
-      updatedAt: timestamp
+      updatedAt: timestamp,
     });
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "User action logged successfully",
-      actionData: actionMessage
+      actionData: actionMessage,
     });
   } catch (error) {
     console.error("Error logging user action:", error);
@@ -539,10 +608,12 @@ exports.getChatMessages = async (req, res) => {
     }
 
     const chatData = chat.data();
-    
+
     // Verify user is a participant
     if (!chatData.participants.includes(userId)) {
-      return res.status(403).json({ error: "Unauthorized access to this chat" });
+      return res
+        .status(403)
+        .json({ error: "Unauthorized access to this chat" });
     }
 
     // Get messages with pagination
@@ -550,10 +621,10 @@ exports.getChatMessages = async (req, res) => {
     const totalMessages = messages.length;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    
+
     // Sort messages by createdAt in descending order (newest first)
-    const sortedMessages = messages.sort((a, b) => 
-      b.createdAt.toDate() - a.createdAt.toDate()
+    const sortedMessages = messages.sort(
+      (a, b) => b.createdAt.toDate() - a.createdAt.toDate()
     );
 
     const paginatedMessages = sortedMessages.slice(startIndex, endIndex);
@@ -561,24 +632,25 @@ exports.getChatMessages = async (req, res) => {
     // Get participant details
     const participantDetails = await Promise.all(
       chatData.participants.map(async (participantId) => {
-        const collection = chatData.chatType === 'admin-admin' || participantId === userId 
-          ? 'admins' 
-          : 'users';
-        
+        const collection =
+          chatData.chatType === "admin-admin" || participantId === userId
+            ? "admins"
+            : "users";
+
         const participantDoc = await firebaseDb
           .collection(collection)
           .doc(participantId)
           .get();
 
         const participantData = participantDoc.data() || {};
-        
+
         return {
           id: participantId,
           name: participantData.displayName || participantData.email,
           email: participantData.email,
-          role: collection === 'admins' ? 'admin' : 'client',
+          role: collection === "admins" ? "admin" : "client",
           activeStatus: participantData.activeStatus,
-          lastSeen: participantData.lastSeen
+          lastSeen: participantData.lastSeen,
         };
       })
     );
@@ -592,12 +664,11 @@ exports.getChatMessages = async (req, res) => {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalMessages / limit),
         totalMessages,
-        hasMore: endIndex < totalMessages
-      }
+        hasMore: endIndex < totalMessages,
+      },
     });
-
   } catch (error) {
     console.error("Error fetching chat messages:", error);
     res.status(500).json({ error: "Failed to fetch chat messages" });
   }
-}; 
+};

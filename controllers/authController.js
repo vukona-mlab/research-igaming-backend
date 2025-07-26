@@ -6,7 +6,7 @@ const {
 const jwt = require("jsonwebtoken");
 const { FieldValue } = require("firebase-admin/firestore");
 const { v4: uuidv4 } = require("uuid");
-const axios = require('axios');
+const axios = require("axios");
 
 // Register user
 exports.register = async (req, res) => {
@@ -105,18 +105,16 @@ exports.login = async (req, res) => {
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User profile not found" });
     }
-    const devices = userDoc.data().devices ?? []
+    const devices = userDoc.data().devices ?? [];
     console.log({ devices });
     console.log({ includes: devices.includes(deviceToken) });
     if (deviceToken !== undefined) {
       if (devices === undefined || !devices.includes(deviceToken)) {
-        console.log('trying to push device');
+        console.log("trying to push device");
         console.log({ deviceToken });
 
-        devices.push(deviceToken)
+        devices.push(deviceToken);
         console.log({ devices });
-
-
       }
     }
     //update active status
@@ -124,11 +122,11 @@ exports.login = async (req, res) => {
       activeStatus: true,
       updatedAt: new Date(),
       lastSeen: new Date(),
-      devices: devices
+      devices: devices,
     });
     setImmediate(async () => {
-      firebaseDb.collection("users")
-    })
+      firebaseDb.collection("users");
+    });
     // Generate JWT token
     const payload = { uid: userRecord.uid };
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -172,8 +170,7 @@ exports.update = async (req, res) => {
     } = req.body;
     console.log({ packages });
     console.log(req.body);
-    
-    
+
     if (JSON.stringify(req.body) === "{}" && typeof req.file === "undefined") {
       res.status(500).json({ error: "Must have atleast one field to update" });
     }
@@ -196,7 +193,7 @@ exports.update = async (req, res) => {
         });
 
         updateObj.profilePicture = imageUrl;
-      } catch (err) { }
+      } catch (err) {}
     }
     if (name !== "" && typeof name !== "undefined") {
       updateObj.name = name;
@@ -239,13 +236,11 @@ exports.update = async (req, res) => {
           .collection("users")
           .doc(userId)
           .update(updateObj);
-          res.status(201).json({ message: "User has been updated succesfully" });
+        res.status(201).json({ message: "User has been updated succesfully" });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
     }
-
-    
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "An error occured during update" });
@@ -281,29 +276,27 @@ exports.googleSignIn = async (req, res) => {
           lastSeen: new Date(),
         });
     }
-    const devices = userDoc.data().devices ?? []
+    const devices = userDoc.data().devices ?? [];
     console.log({ devices });
     console.log({ includes: devices.includes(deviceToken) });
     if (deviceToken !== undefined) {
       if (devices === undefined || !devices.includes(deviceToken)) {
-        console.log('trying to push device');
+        console.log("trying to push device");
         console.log({ deviceToken });
 
-        devices.push(deviceToken)
+        devices.push(deviceToken);
         console.log({ devices });
-
-
       }
     }
 
-    console.log('checking device');
+    console.log("checking device");
     console.log({ devices });
     //update active status
     await firebaseDb.collection("users").doc(uid).update({
       activeStatus: true,
       updatedAt: new Date(),
       lastSeen: new Date(),
-      devices: devices
+      devices: devices,
     });
 
     // Generate JWT token
@@ -538,6 +531,26 @@ exports.createAdmin = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+// Get all admins (super admin and admin only)
+exports.getAllAdminIds = async (req, res) => {
+  try {
+    // Check if requester is a super admin or admin
+
+    const adminsSnapshot = await firebaseDb
+      .collection("admins")
+      .where("roles", "in", [["super_admin"]])
+      .get();
+
+    const admins = [];
+    adminsSnapshot.forEach((doc) => {
+      admins.push({ id: doc.id });
+    });
+
+    res.status(200).json({ admins });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
 
 // Get all admins (super admin and admin only)
 exports.getAllAdmins = async (req, res) => {
@@ -549,7 +562,8 @@ exports.getAllAdmins = async (req, res) => {
       .get();
     if (
       !requesterDoc.exists ||
-      (!requesterDoc.data().roles.includes("super_admin") && !requesterDoc.data().roles.includes("admin"))
+      (!requesterDoc.data().roles.includes("super_admin") &&
+        !requesterDoc.data().roles.includes("admin"))
     ) {
       return res
         .status(403)
@@ -658,18 +672,22 @@ exports.adminLogin = async (req, res) => {
         {
           email,
           password,
-          returnSecureToken: true
+          returnSecureToken: true,
         }
       );
 
       const { localId: uid } = response.data;
 
       // Check if user exists in admins collection
-      const adminDoc = await firebaseDb.collection('admins').doc(uid).get();
+      const adminDoc = await firebaseDb.collection("admins").doc(uid).get();
 
       if (!adminDoc.exists) {
-        console.error('Admin login attempt failed: User not found in admins collection');
-        return res.status(403).json({ error: "Unauthorized - Admin access only" });
+        console.error(
+          "Admin login attempt failed: User not found in admins collection"
+        );
+        return res
+          .status(403)
+          .json({ error: "Unauthorized - Admin access only" });
       }
 
       const adminData = adminDoc.data();
@@ -681,10 +699,10 @@ exports.adminLogin = async (req, res) => {
           uid,
           email,
           roles,
-          type: 'admin'
+          type: "admin",
         },
         process.env.JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: "24h" }
       );
 
       res.status(200).json({
@@ -694,23 +712,28 @@ exports.adminLogin = async (req, res) => {
           uid,
           email,
           roles,
-          displayName: adminData.displayName
-        }
+          displayName: adminData.displayName,
+        },
       });
-
     } catch (authError) {
-      console.error('Admin authentication error:', authError.response?.data || authError);
+      console.error(
+        "Admin authentication error:",
+        authError.response?.data || authError
+      );
       return res.status(401).json({
         error: "Invalid email or password",
-        details: process.env.NODE_ENV === 'development' ? authError.message : undefined
+        details:
+          process.env.NODE_ENV === "development"
+            ? authError.message
+            : undefined,
       });
     }
-
   } catch (error) {
     console.error("Admin Login Error:", error);
     res.status(500).json({
       error: "Login failed",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -792,7 +815,9 @@ exports.getAdminProfile = async (req, res) => {
 
     // Allow access if user is super_admin or admin
     if (!isSuperAdmin && !isAdmin) {
-      return res.status(403).json({ error: "Access denied - Admin privileges required" });
+      return res
+        .status(403)
+        .json({ error: "Access denied - Admin privileges required" });
     }
 
     // Get admin profile
@@ -851,25 +876,27 @@ exports.updateAdminProfile = async (req, res) => {
     if (req.file) {
       try {
         const buffer = req.file.buffer;
-        const extension = req.file.originalname.split('.').pop();
+        const extension = req.file.originalname.split(".").pop();
         const fileName = `admin-profile-pictures/${adminId}.${extension}`;
         const file = firebaseBucket.file(fileName);
 
         await file.save(buffer, {
           metadata: {
-            contentType: req.file.mimetype
-          }
+            contentType: req.file.mimetype,
+          },
         });
 
         const [url] = await file.getSignedUrl({
-          action: 'read',
-          expires: '03-09-2491'
+          action: "read",
+          expires: "03-09-2491",
         });
 
         updateData.profilePicture = url;
       } catch (error) {
-        console.error('Error uploading profile picture:', error);
-        return res.status(500).json({ error: 'Failed to upload profile picture' });
+        console.error("Error uploading profile picture:", error);
+        return res
+          .status(500)
+          .json({ error: "Failed to upload profile picture" });
       }
     }
 
@@ -902,8 +929,9 @@ exports.updateAdminProfile = async (req, res) => {
       .doc(adminId)
       .update({
         ...updateData,
-        displayName: `${updateData.name || adminDoc.data().name} ${updateData.surname || adminDoc.data().surname
-          }`,
+        displayName: `${updateData.name || adminDoc.data().name} ${
+          updateData.surname || adminDoc.data().surname
+        }`,
         updatedAt: new Date(),
       });
 
@@ -912,7 +940,7 @@ exports.updateAdminProfile = async (req, res) => {
       updatedFields: Object.keys(updateData),
     });
   } catch (error) {
-    console.error('Error updating admin profile:', error);
+    console.error("Error updating admin profile:", error);
     res.status(400).json({ error: error.message });
   }
 };
