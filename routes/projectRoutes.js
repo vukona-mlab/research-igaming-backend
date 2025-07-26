@@ -13,7 +13,7 @@ router.get("/chat/:chatId", projectController.getProjectByChatId);
 // CRUD Routes
 router.post("/", projectController.createProject);
 router.get("/", projectController.getAllProjects);
-router.get("/:clientId", projectController.getClientProjects)
+router.get("/:clientId", projectController.getClientProjects);
 router.get("/:projectId", projectController.getProject);
 router.put(
   "/:projectId",
@@ -33,16 +33,10 @@ router.put(
 router.delete("/:projectId", projectController.deleteProject);
 
 // Additional Routes
-router.put(
-  "/:projectId/status",
-  projectController.updateProjectStatus
-);
+router.put("/:projectId/status", projectController.updateProjectStatus);
 router.post("/:projectId/reviews", projectController.addReview);
 
 // New route for project counts by status
-router.get(
-  "/status-counts",
-  projectController.getProjectCountsByStatus
-);
+router.get("/status-counts", projectController.getProjectCountsByStatus);
 
 module.exports = router;
