@@ -1,6 +1,8 @@
-const { firebaseDb } = require("../config/firebase");
+const { firebaseDb, firebaseBucket } = require("../config/firebase");
 const { FieldValue } = require("firebase-admin/firestore");
 const moment = require("moment");
+const { v4: uuidv4 } = require("uuid");
+
 // Create or update chat with messages
 exports.createChat = async (req, res) => {
   try {
@@ -254,7 +256,7 @@ exports.getUserChats = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { message, senderId, type, meetingDetails } = req.body;
+    const { message, senderId, attachments, type, meetingDetails } = req.body;
     const timestamp = new Date();
 
     // Get the chat document
@@ -279,6 +281,7 @@ exports.sendMessage = async (req, res) => {
       senderId,
       createdAt: timestamp,
       type: type || "text",
+      attachments,
     };
 
     // Add meeting details if it's a zoom meeting message
@@ -320,7 +323,74 @@ exports.sendMessage = async (req, res) => {
       .json({ error: "An error occurred while sending the message" });
   }
 };
+exports.uploadImage = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const updateData = req.body;
 
+    const userId = req.user.uid;
+    const files = req.files;
+    console.log("KDJS", { files });
+    if (files && files.length > 0) {
+      const uploadedFiles = [];
+
+      for (const file of files) {
+        const fileExtension = file.originalname.split(".").pop();
+
+        const fileName = `chat-attachments/${chatId}/${uuidv4()}.${fileExtension}`;
+
+        // Create a new blob in the bucket
+        const blob = firebaseBucket.file(fileName);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+
+        // Handle errors during upload
+        await new Promise((resolve, reject) => {
+          blobStream.on("error", (error) => {
+            reject(error);
+          });
+
+          blobStream.on("finish", async () => {
+            // Make the file public
+            await blob.makePublic();
+
+            // Get the public URL
+            const publicUrl = `https://storage.googleapis.com/${firebaseBucket.name}/${fileName}`;
+
+            uploadedFiles.push({
+              url: publicUrl,
+              name: file.originalname,
+              type: file.mimetype,
+              size: file.size,
+              uploadedAt: new Date(),
+            });
+
+            resolve();
+          });
+
+          blobStream.end(file.buffer);
+        });
+      }
+
+      // Add uploaded files to project data
+      if (!updateData.files) {
+        updateData.files = [];
+      }
+      updateData.files = [...updateData.files, ...uploadedFiles];
+    }
+
+    res.status(200).json({
+      message: "Images updated successfully",
+      updatedFiles: updateData.files,
+    });
+  } catch (error) {
+    console.error("Error updating image:", error);
+    res.status(500).json({ error: "Failed to update image" });
+  }
+};
 // Add this new method to get a single chat
 exports.getChat = async (req, res) => {
   try {

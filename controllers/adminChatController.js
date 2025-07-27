@@ -1,5 +1,6 @@
 const { firebaseDb } = require("../config/firebase");
 const { FieldValue } = require("firebase-admin/firestore");
+const { v4: uuidv4 } = require("uuid");
 
 // Create or get admin chat
 exports.createAdminChat = async (req, res) => {
@@ -69,7 +70,11 @@ exports.createAdminChat = async (req, res) => {
     let existingChat = null;
     existingChats.forEach((doc) => {
       const data = doc.data();
-      if (data.participants.includes(targetId) && data.chatType === chatType) {
+      if (
+        data.participants.includes(targetId) &&
+        data.chatType === chatType &&
+        data.tags[0] == tags[0]
+      ) {
         existingChat = { id: doc.id, ...data };
       }
     });
@@ -315,6 +320,7 @@ exports.sendAdminMessage = async (req, res) => {
       type,
       metadata,
       senderId,
+      attachments,
       senderName,
       isAdminChat,
       senderRole,
@@ -330,13 +336,6 @@ exports.sendAdminMessage = async (req, res) => {
     });
 
     // Verify sender exists and is authorized
-    const senderDoc = await firebaseDb.collection("admins").doc(senderId).get();
-    if (!senderDoc.exists) {
-      console.error("Debug - Sender not found in admins collection:", senderId);
-      return res
-        .status(403)
-        .json({ error: "Unauthorized - Admin access only" });
-    }
 
     // Get chat details
     const chatRef = firebaseDb.collection("adminChats").doc(chatId);
@@ -359,6 +358,25 @@ exports.sendAdminMessage = async (req, res) => {
       return res
         .status(403)
         .json({ error: "Unauthorized access to this chat" });
+    }
+
+    let senderDoc;
+    console.log({ chatData });
+    if (chatData.chatType === "admin-admin") {
+      senderDoc = await firebaseDb.collection("admins").doc(senderId).get();
+    } else {
+      if (isAdminChat) {
+        senderDoc = await firebaseDb.collection("admins").doc(senderId).get();
+      } else {
+        senderDoc = await firebaseDb.collection("users").doc(senderId).get();
+      }
+    }
+
+    if (!senderDoc.exists) {
+      console.error("Debug - Sender not found in admins collection:", senderId);
+      return res
+        .status(403)
+        .json({ error: "Unauthorized - Admin access only" });
     }
 
     // Support different message types
@@ -388,18 +406,25 @@ exports.sendAdminMessage = async (req, res) => {
     }
 
     let recipientDoc;
+
     if (chatData.chatType === "admin-admin") {
       recipientDoc = await firebaseDb
         .collection("admins")
         .doc(recipientId)
         .get();
     } else {
-      recipientDoc = await firebaseDb
-        .collection("users")
-        .doc(recipientId)
-        .get();
+      if (isAdminChat) {
+        recipientDoc = await firebaseDb
+          .collection("users")
+          .doc(recipientId)
+          .get();
+      } else {
+        recipientDoc = await firebaseDb
+          .collection("admins")
+          .doc(recipientId)
+          .get();
+      }
     }
-
     if (!recipientDoc.exists) {
       console.error("Debug - Recipient document not found:", {
         recipientId,
@@ -423,6 +448,7 @@ exports.sendAdminMessage = async (req, res) => {
     // Update chat with new message
     await chatRef.update({
       messages: FieldValue.arrayUnion(newMessage),
+      attachments,
       lastMessage: message,
       lastMessageType: type || "text",
       lastMessageSenderId: senderId,
@@ -433,20 +459,58 @@ exports.sendAdminMessage = async (req, res) => {
     });
 
     // Emit socket event with recipient type
-    req.app
-      .get("io")
-      .to(`admin-chat-${chatId}`)
-      .emit("new-admin-message", {
-        chatId,
-        message: newMessage,
-        chatType: chatData.chatType,
-        recipientId,
-        recipientType: chatData.chatType === "admin-admin" ? "admin" : "client",
-      });
+
+    if (
+      chatData.chatType === "admin-client" ||
+      chatData.chatType === "client-admin"
+    ) {
+      req.app
+        .get("io")
+        .to(chatId)
+        .emit("new-message", {
+          chatId,
+          message: {
+            ...newMessage,
+            createdAt: timestamp, // Ensure timestamp is included in socket emission
+          },
+        });
+      req.app
+        .get("io")
+        .to(`admin-chat-${chatId}`)
+        .emit("new-admin-message", {
+          chatId,
+          message: {
+            ...newMessage,
+            createdAt: timestamp, // Ensure timestamp is included in socket emission
+          },
+          chatType: chatData.chatType,
+          recipientId,
+          recipientType:
+            chatData.chatType === "admin-admin" ? "admin" : "client",
+        });
+    } else if (chatData.chatType === "admin-admin") {
+      req.app
+        .get("io")
+        .to(`admin-chat-${chatId}`)
+        .emit("new-admin-message", {
+          chatId,
+          message: {
+            ...newMessage,
+            createdAt: timestamp, // Ensure timestamp is included in socket emission
+          },
+          chatType: chatData.chatType,
+          recipientId,
+          recipientType:
+            chatData.chatType === "admin-admin" ? "admin" : "client",
+        });
+    }
 
     res.status(200).json({
       message: "Message sent successfully",
-      messageData: newMessage,
+      messageData: {
+        ...newMessage,
+        createdAt: timestamp, // Ensure timestamp is included in response
+      },
     });
   } catch (error) {
     console.error("Error sending admin message:", error);
@@ -670,5 +734,72 @@ exports.getChatMessages = async (req, res) => {
   } catch (error) {
     console.error("Error fetching chat messages:", error);
     res.status(500).json({ error: "Failed to fetch chat messages" });
+  }
+};
+exports.uploadImage = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const updateData = req.body;
+
+    const userId = req.user.uid;
+    const files = req.files;
+    if (files && files.length > 0) {
+      const uploadedFiles = [];
+
+      for (const file of files) {
+        const fileExtension = file.originalname.split(".").pop();
+
+        const fileName = `chat-attachments/${chatId}/${uuidv4()}.${fileExtension}`;
+
+        // Create a new blob in the bucket
+        const blob = firebaseBucket.file(fileName);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+
+        // Handle errors during upload
+        await new Promise((resolve, reject) => {
+          blobStream.on("error", (error) => {
+            reject(error);
+          });
+
+          blobStream.on("finish", async () => {
+            // Make the file public
+            await blob.makePublic();
+
+            // Get the public URL
+            const publicUrl = `https://storage.googleapis.com/${firebaseBucket.name}/${fileName}`;
+
+            uploadedFiles.push({
+              url: publicUrl,
+              name: file.originalname,
+              type: file.mimetype,
+              size: file.size,
+              uploadedAt: new Date(),
+            });
+
+            resolve();
+          });
+
+          blobStream.end(file.buffer);
+        });
+      }
+
+      // Add uploaded files to project data
+      if (!updateData.files) {
+        updateData.files = [];
+      }
+      updateData.files = [...updateData.files, ...uploadedFiles];
+    }
+
+    res.status(200).json({
+      message: "Images updated successfully",
+      updatedFiles: updateData.files,
+    });
+  } catch (error) {
+    console.error("Error updating image:", error);
+    res.status(500).json({ error: "Failed to update image" });
   }
 };
