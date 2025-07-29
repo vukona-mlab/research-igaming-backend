@@ -339,7 +339,6 @@ exports.uploadImage = async (req, res) => {
 
         const fileName = `chat-attachments/${chatId}/${uuidv4()}.${fileExtension}`;
 
-        // Create a new blob in the bucket
         const blob = firebaseBucket.file(fileName);
         const blobStream = blob.createWriteStream({
           metadata: {
