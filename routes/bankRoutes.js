@@ -1,5 +1,6 @@
 const { Router } = require("express");
 const passport = require("passport");
+const checkProfileCompleted = require("../middleware/checkProfileCompleted");
 
 const bankRoutes = Router();
 const {
@@ -9,6 +10,7 @@ const {
 bankRoutes.get(
   "/",
   passport.authenticate("jwt", { session: false }),
+  checkProfileCompleted,
   getBanks
 );
 
