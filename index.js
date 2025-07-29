@@ -28,7 +28,7 @@ const adminChatRoutes = require("./routes/adminChatRoutes");
 const notificationsRoutes = require("./routes/notificationsRoutes");
 const bankAccountRoutes = require("./routes/bankAccountRoutes");
 const bioRoutes = require("./routes/bioRoutes");
-const { sendPushNotification } = require("./firebase-messaging");
+const { sendPushNotification } = require("./firebase-messaging"); 
 
 const app = express();
 app.use(

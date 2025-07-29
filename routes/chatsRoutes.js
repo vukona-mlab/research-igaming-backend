@@ -2,12 +2,14 @@ const express = require("express");
 const router = express.Router();
 const chatsController = require("../controllers/chatsController");
 const passport = require("passport");
+const checkProfileCompleted = require("../middleware/checkProfileCompleted");
 const projectFileUpload = require("../middleware/projectFileUpload");
 
 // Get all chats for the authenticated user
 router.get(
   "/",
   passport.authenticate("jwt", { session: false }),
+  checkProfileCompleted,
   chatsController.getUserChats
 );
 
