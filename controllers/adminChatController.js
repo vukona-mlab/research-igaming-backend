@@ -5,8 +5,15 @@ const { v4: uuidv4 } = require("uuid");
 // Create or get admin chat
 exports.createAdminChat = async (req, res) => {
   try {
-    const { targetId, chatType, category, priority, tags, initialMessage } =
-      req.body;
+    const {
+      targetId,
+      chatType,
+      category,
+      priority,
+      tags,
+      initialMessage,
+      chatReportId,
+    } = req.body;
     const initiatorId = req.user.uid;
     const timestamp = new Date();
 
@@ -86,7 +93,26 @@ exports.createAdminChat = async (req, res) => {
         chat: existingChat,
       });
     }
+    //store chats in the reports if it is a report
+    if (tags && tags.length > 0 && tags[0] === "report") {
+      const chatRef = firebaseDb.collection("chats").doc(chatReportId);
+      const chat = await chatRef.get();
 
+      if (!chat.exists) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+
+      const chatData = chat.data();
+      const newReport = await firebaseDb.collection("Reports").add({
+        participants: [initiatorId, targetId],
+        chatHistory: chatData.messages || [],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        tags: tags || [],
+        reason: initialMessage,
+        status: "active",
+      });
+    }
     // Create new chat in adminChats collection
     const newChat = await firebaseDb.collection("adminChats").add({
       participants: [initiatorId, targetId],

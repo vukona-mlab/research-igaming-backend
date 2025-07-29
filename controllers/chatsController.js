@@ -69,7 +69,7 @@ exports.createChat = async (req, res) => {
 exports.deleteChat = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const userId = req.user.id; // Assuming the user is authenticated with passport
+    const userId = req.user.uid; // Assuming the user is authenticated with passport
 
     // Reference to the chat document in Firestore
     const chatRef = firebaseDb.collection("chats").doc(chatId);
@@ -82,6 +82,7 @@ exports.deleteChat = async (req, res) => {
 
     // Check if the user is part of the chat (either freelancer or client)
     const chatData = chatDoc.data();
+    console.log({ userId, chatData });
     if (!chatData.participants.includes(userId)) {
       return res
         .status(403)
