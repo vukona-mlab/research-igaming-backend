@@ -282,8 +282,10 @@ exports.sendMessage = async (req, res) => {
       senderId,
       createdAt: timestamp,
       type: type || "text",
-      attachments,
+      attachments: attachments || [],
     };
+
+    console.log({ newMessage });
 
     // Add meeting details if it's a zoom meeting message
     if (type === "zoom-meeting" && meetingDetails) {
