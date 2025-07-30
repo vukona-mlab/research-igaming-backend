@@ -150,9 +150,11 @@ exports.getUserChats = async (req, res) => {
     if (!chatsSnapshot.empty) {
       for (const doc of chatsSnapshot.docs) {
         const chatData = doc.data();
+        console.log(chatData + "chat data")
         const otherParticipantId = chatData.participants.find(
           (id) => id !== userId
         );
+        console.log(`other participantID ${otherParticipantId}`)
 
         // Get other participant's data
         const userDoc = await firebaseDb
@@ -248,7 +250,7 @@ exports.getUserChats = async (req, res) => {
 
     res.status(200).json({ chats });
   } catch (error) {
-    console.error("Error getting user chats:", error);
+    console.error("message from the back - Error getting user chats:", error);
     res.status(500).json({ error: "An error occurred while fetching chats" });
   }
 };
