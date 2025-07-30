@@ -15,6 +15,11 @@ exports.createChat = async (req, res) => {
       });
     }
 
+    if (freelancerId == clientId) {
+      return res.status(400).json({
+        error: "Cannot send message to yourself.",
+      });
+    }
     // Check if chat exists
     const existingChats = await firebaseDb
       .collection("chats")
