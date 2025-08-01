@@ -12,12 +12,15 @@ const axios = require("axios");
 function isProfileCompleted(user) {
   return Boolean(
     user.displayName &&
-    user.name &&
-    user.surname &&
-    user.email &&
-    user.profilePicture &&
-    user.bio && typeof user.bio === 'string' && user.bio.trim().length > 0 &&
-    user.phoneNumber && user.phoneNumber !== 'undefined'
+      user.name &&
+      user.surname &&
+      user.email &&
+      user.profilePicture &&
+      user.bio &&
+      typeof user.bio === "string" &&
+      user.bio.trim().length > 0 &&
+      user.phoneNumber &&
+      user.phoneNumber !== "undefined"
   );
 }
 
@@ -58,7 +61,10 @@ exports.register = async (req, res) => {
       });
 
     // Fetch the created user profile for completeness check
-    const userDoc = await firebaseDb.collection("users").doc(userRecord.uid).get();
+    const userDoc = await firebaseDb
+      .collection("users")
+      .doc(userRecord.uid)
+      .get();
     const userData = userDoc.data();
     const profileCompleted = isProfileCompleted(userData);
 
@@ -67,7 +73,7 @@ exports.register = async (req, res) => {
       user: {
         ...userRecord,
         ...userData,
-        profileCompleted
+        profileCompleted,
       },
     });
   } catch (error) {
@@ -130,7 +136,7 @@ exports.login = async (req, res) => {
     }
     const userData = userDoc.data();
     const profileCompleted = isProfileCompleted(userData);
-    const devices = userDoc.data().devices ?? []
+    const devices = userDoc.data().devices ?? [];
     console.log({ devices });
     console.log({ includes: devices.includes(deviceToken) });
     if (deviceToken !== undefined) {
@@ -164,7 +170,7 @@ exports.login = async (req, res) => {
       user: {
         uid: userRecord.uid,
         ...userData,
-        profileCompleted
+        profileCompleted,
       },
     });
   } catch (error) {
@@ -217,8 +223,7 @@ exports.update = async (req, res) => {
           action: "read",
           expires: "03-09-2491",
         });
-
-        updateObj.profilePicture = imageUrl;
+        updateObj.profilePicture = imageUrl[0];
       } catch (err) {}
     }
     if (name !== "" && typeof name !== "undefined") {
@@ -231,30 +236,35 @@ exports.update = async (req, res) => {
       updateObj.displayName = displayName;
     }
     // Phone number: only update if valid (not empty, not 'undefined', not whitespace)
-// In your backend update function, replace the phoneNumber validation with:
-if (
-  typeof phoneNumber !== "undefined" &&
-  typeof phoneNumber === "string" &&
-  phoneNumber.trim() !== "" &&
-  phoneNumber !== "undefined" &&
-  phoneNumber.toLowerCase() !== "undefined"
-) {
-  const phonePattern = /^\+?[0-9]{7,15}$/;
-  if (phonePattern.test(phoneNumber.trim())) {
-    updateObj.phoneNumber = phoneNumber.trim();
-  }
-} else if (phoneNumber === "undefined" || phoneNumber === "") {
-  updateObj.phoneNumber = "";
-}
+    // In your backend update function, replace the phoneNumber validation with:
+    if (
+      typeof phoneNumber !== "undefined" &&
+      typeof phoneNumber === "string" &&
+      phoneNumber.trim() !== "" &&
+      phoneNumber !== "undefined" &&
+      phoneNumber.toLowerCase() !== "undefined"
+    ) {
+      const phonePattern = /^\+?[0-9]{7,15}$/;
+      if (phonePattern.test(phoneNumber.trim())) {
+        updateObj.phoneNumber = phoneNumber.trim();
+      }
+    } else if (phoneNumber === "undefined" || phoneNumber === "") {
+      updateObj.phoneNumber = "";
+    }
 
     // Specialities: always store as array
     if (typeof speciality !== "undefined" && speciality !== "") {
       if (Array.isArray(speciality)) {
-        updateObj.specialities = speciality.filter(s => typeof s === 'string' && s.trim() !== '').map(s => s.trim());
-      } else if (typeof speciality === 'string') {
+        updateObj.specialities = speciality
+          .filter((s) => typeof s === "string" && s.trim() !== "")
+          .map((s) => s.trim());
+      } else if (typeof speciality === "string") {
         // If comma-separated, split; else, single value
         if (speciality.includes(",")) {
-          updateObj.specialities = speciality.split(",").map(s => s.trim()).filter(Boolean);
+          updateObj.specialities = speciality
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
         } else {
           updateObj.specialities = [speciality.trim()];
         }
@@ -286,10 +296,13 @@ if (
           .collection("users")
           .doc(userId)
           .update(updateObj);
-          const updatedUserDoc = await firebaseDb.collection("users").doc(userId).get();
-          const updatedUser = updatedUserDoc.data();
-          const profileCompleted = isProfileCompleted(updatedUser);
-          res.status(200).json({ user: { ...updatedUser, profileCompleted } });
+        const updatedUserDoc = await firebaseDb
+          .collection("users")
+          .doc(userId)
+          .get();
+        const updatedUser = updatedUserDoc.data();
+        const profileCompleted = isProfileCompleted(updatedUser);
+        res.status(200).json({ user: { ...updatedUser, profileCompleted } });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -331,7 +344,7 @@ exports.googleSignIn = async (req, res) => {
     }
     const userData = userDoc.data();
     const profileCompleted = isProfileCompleted(userData);
-    const devices = userDoc.data().devices ?? []
+    const devices = userDoc.data().devices ?? [];
     console.log({ devices });
     console.log({ includes: devices.includes(deviceToken) });
     if (deviceToken !== undefined) {
@@ -365,7 +378,7 @@ exports.googleSignIn = async (req, res) => {
       user: {
         uid,
         ...userData,
-        profileCompleted
+        profileCompleted,
       },
     });
   } catch (error) {
