@@ -453,6 +453,7 @@ exports.uploadDocuments = async (req, res) => {
   try {
     const { documentsArr } = req.body;
     const userId = req.user.uid;
+    console.log({ documentsArr });
 
     let documents = [];
     if (!documentsArr) {
@@ -465,7 +466,10 @@ exports.uploadDocuments = async (req, res) => {
       }
       return document;
     });
-
+    const userDoc = await firebaseDb.collection("users").doc(userId).get();
+    const userData = userDoc.data();
+    const existingDocs = userData.documents;
+    documents = [...existingDocs];
     if (typeof req.files !== "undefined") {
       await Promise.all(
         req.files.map(async (file) => {
@@ -473,7 +477,16 @@ exports.uploadDocuments = async (req, res) => {
           const extension = file.originalname.substring(
             file.originalname.indexOf(".") + 1
           );
-          const id = uuidv4();
+          const doc = updatedDocs.find(
+            (obj) => obj.documentName === file.originalname
+          );
+
+          const docExist = existingDocs.filter(
+            (d) => d.id && doc && d.documentType == doc.documentType
+          );
+          console.log({ doc, docExist });
+
+          const id = docExist.length > 0 ? docExist[0].id : uuidv4();
 
           const uploadedFile = firebaseBucket.file(
             `documents/${userId}/` + id + "." + extension
@@ -483,18 +496,33 @@ exports.uploadDocuments = async (req, res) => {
             action: "read",
             expires: "03-09-2491",
           });
-          const doc = updatedDocs.find(
-            (obj) => obj.documentName === file.originalname
-          );
-
-          documents.push({
-            id: id,
-            documentName: file.originalname,
-            documentType: (doc && doc.documentType) || "",
-            dateAdded: (doc && doc.dateAdded) || "",
-            status: "pending",
-            url: documentUrl,
-          });
+          let updatedDocsArr = [];
+          if (docExist.length > 0) {
+            console.log("running");
+            updatedDocsArr = documents.map((obj) => {
+              if (obj.id === docExist[0].id) {
+                let newObj = {
+                  ...docExist[0],
+                  documentName: file.originalname,
+                  dateAdded: (doc && doc.dateAdded) || "",
+                  status: "pending",
+                  url: documentUrl,
+                };
+                return newObj;
+              }
+              return obj;
+            });
+            documents = updatedDocsArr;
+          } else {
+            documents.push({
+              id: id,
+              documentName: file.originalname,
+              documentType: (doc && doc.documentType) || "",
+              dateAdded: (doc && doc.dateAdded) || "",
+              status: "pending",
+              url: documentUrl,
+            });
+          }
         })
       );
     }
@@ -509,7 +537,7 @@ exports.uploadDocuments = async (req, res) => {
         const result = await firebaseDb
           .collection("users")
           .doc(userId)
-          .update("documents", FieldValue.arrayUnion(...documents));
+          .update("documents", documents);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
