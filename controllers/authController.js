@@ -99,6 +99,23 @@ exports.updateRole = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+exports.updateStatus = async (req, res) => {
+  const { userId } = req.params;
+  const { status } = req.body;
+
+  try {
+    await firebaseDb.collection("users").doc(userId).update({
+      status,
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({
+      message: "User status updated successfully",
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
 
 // Get user profile
 exports.getProfile = async (req, res) => {

@@ -5,6 +5,7 @@ const {
   register,
   login,
   updateRole,
+  updateStatus,
   getProfile,
   update,
   googleSignIn,
@@ -38,6 +39,11 @@ router.put(
   "/users/:userId/roles",
   passport.authenticate("jwt", { session: false }),
   updateRole
+);
+router.put(
+  "/users/:userId/status",
+  passport.authenticate("jwt", { session: false }),
+  updateStatus
 );
 router.get(
   "/users/:userId",
