@@ -29,6 +29,7 @@ const notificationsRoutes = require("./routes/notificationsRoutes");
 const bankAccountRoutes = require("./routes/bankAccountRoutes");
 const bioRoutes = require("./routes/bioRoutes");
 const { sendPushNotification } = require("./firebase-messaging"); 
+const chatBotRoutes = require("./routes/chatBotRoutes");
 
 const app = express();
 app.use(
@@ -149,6 +150,7 @@ app.use("/api/banks", bankRoutes);
 app.use("/api/bank-accounts", bankAccountRoutes);
 app.use("/api", transactionRoutes); //
 app.use("/api/zoom", zoomRoutes);
+app.use("/api/chatbot", chatBotRoutes);
 app.use("/api", clientRoutes); //
 app.use("/api/documents", documentsRoutes);
 app.use("/api/admin-chats", adminChatRoutes);
