@@ -40,8 +40,8 @@ app.use(
       "http://localhost:5175",
       "http://localhost:3000",
       "http://localhost:3001",
-      "https://research-igaming.web.app/",
-      "https://admin-research-igaming.web.app/"
+      "https://research-igaming.web.app",
+      "https://admin-research-igaming.web.app"
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
