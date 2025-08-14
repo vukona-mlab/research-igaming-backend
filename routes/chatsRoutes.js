@@ -9,7 +9,7 @@ const projectFileUpload = require("../middleware/projectFileUpload");
 router.get(
   "/",
   passport.authenticate("jwt", { session: false }),
-  checkProfileCompleted,
+  // checkProfileCompleted,
   chatsController.getUserChats
 );
 
