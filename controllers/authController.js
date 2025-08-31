@@ -102,7 +102,6 @@ exports.updateRole = async (req, res) => {
 exports.updateStatus = async (req, res) => {
   const { userId } = req.params;
   const { blocked } = req.body;
-  console.log({ blocked, userId });
   
   try {
     await firebaseDb.collection("users").doc(userId).update({
