@@ -19,13 +19,23 @@ exports.getFreelancers = async (req, res) => {
     // Get the page number and page size from query parameters (default pageSize to 30)
     const pageSize = parseInt(req.query.pageSize) || 30;
     const page = parseInt(req.query.page) || 1;
-
+    const { category, search } = req.query
     // Calculate the starting point for the query
-    let query = firebaseDb
-      .collection("users")
-      .where("roles", "array-contains", "freelancer")
-      .limit(pageSize);
+    let query
 
+    if (category.trim() !== "" && category !== 'undefined' && category !== undefined) {
+      console.log({ category, first: true });
+      query = firebaseDb
+        .collection("users")
+        .where("roles", "array-contains", "freelancer")
+
+    } else {
+      console.log({ category });
+      query = firebaseDb
+        .collection("users")
+        .where("roles", "array-contains", "freelancer")
+        .limit(pageSize);
+    }
     // If it's not the first page, fetch the last document of the previous page
     if (page > 1) {
       const lastVisibleDoc = await firebaseDb
@@ -47,10 +57,22 @@ exports.getFreelancers = async (req, res) => {
     }
 
     // Map the results into an array of user objects
-    const freelancers = freelancersSnapshot.docs.map((doc) => ({
+    let freelancers = freelancersSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
+    if (category.trim() !== "" && category !== 'undefined' && category !== undefined) {
+      console.log({ category });
+      
+      freelancers = freelancers
+        .filter(freelancer => {
+          // console.log({ freelancer });
+          
+          if (freelancer.categories?.includes(category))
+            return freelancer
+        })
+        .slice(0, pageSize)
+    }
 
     res.status(200).json({ freelancers });
   } catch (error) {
