@@ -2,6 +2,7 @@ const { firebaseDb, firebaseBucket } = require("../config/firebase");
 const { FieldValue } = require("firebase-admin/firestore");
 const moment = require("moment");
 const { v4: uuidv4 } = require("uuid");
+const { sendNewMessageNotification } = require("../utils/notification-util");
 
 // Create or update chat with messages
 exports.createChat = async (req, res) => {
@@ -57,6 +58,11 @@ exports.createChat = async (req, res) => {
       updatedAt: timestamp,
       lastMessage: message || "Chat started",
     });
+    if(freelancerId) {
+      setImmediate(() => {
+        sendNewMessageNotification(freelancerId)
+      })
+    }
 
     return res.status(201).json({
       chatId: newChat.id,
@@ -275,6 +281,16 @@ exports.sendMessage = async (req, res) => {
 
     // Verify sender is a participant
     const chatData = chatDoc.data();
+    const [recipientId] = chatData.participants.filter(id => id !== senderId)
+    console.log({ recipientId });
+    if (freelancerId) {
+      setImmediate(() => {
+        sendNewMessageNotification(recipientId)
+      })
+    }
+
+
+
     if (!chatData.participants.includes(senderId)) {
       return res
         .status(403)

@@ -164,10 +164,10 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/ba/sec", (req, res) => {
   res.end({ data: null });
 });
-// app.use("/api/support", supportRoutes)
+// app.use("/api/support", supportRoutes)  
 
 const PORT = process.env.PORT || 8000;
-// sendPushNotification("eYTA6_1yWeCxqOgyH-Ej8j:APA91bGtxkQgBN29EA_epQEs9js_WY4GaTwGF-lIhiT7tOxkZZPU-hFOdJP7t8HzveEp3dC6LbTqaKv7q_RzHDkLjoLSVkjJDTG5qHqCpgjLCOpn4Vnm8GI", "Hi there", "I just wanted to say hi")
+// sendPushNotification('eoCypcaR_1JXavSV5HMjpS:APA91bHN0ECIsbhtSP7prfR_nUFzPYvUhLod9GEyaV-3R7mBixmMi_TuRjeX5dgZrSqLIjJF5X_NJoV5xn5QqViQGSlHLXH0-f1nCNGF_xG4UNWRbB1p0nc', "Hi there", "I just wanted to say hi")
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

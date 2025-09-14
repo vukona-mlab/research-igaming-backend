@@ -2,6 +2,7 @@ const { firebaseDb } = require("../config/firebase");
 const { FieldValue } = require("firebase-admin/firestore");
 
 const fetch = require("node-fetch");
+const { sendProjectFundedNotification, sendReleaseFundsNotification } = require("../utils/notification-util");
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_API_URL = process.env.PAYSTACK_API_URL;
@@ -39,8 +40,8 @@ const initializeTransaction = async (email, amount) => {
 };
 
 const createPayout = async (recipient_code, amount) => {
-  console.log({ url: PAYSTACK_API_URL});
-  
+  console.log({ url: PAYSTACK_API_URL });
+
   try {
     const response = await fetch(`${PAYSTACK_API_URL}/transfer`, {
       method: "POST",
@@ -69,13 +70,13 @@ const createPayout = async (recipient_code, amount) => {
 const createTransaction = async (req, res) => {
   const { clientId, freelancerId, amount, clientEmail, projectId } = req.body;
   console.log({ body: req.body });
-  console.log({ user: req.user});
+  console.log({ user: req.user });
   const { email } = req.user
 
   console.log({ email });
-  
-  
-  
+
+
+
   try {
     const paymentResponse = await initializeTransaction(email, amount);
 
@@ -107,7 +108,7 @@ const createTransaction = async (req, res) => {
 };
 
 const verifyPayment = async (req, res) => {
-  const { reference, clientId, projectId } = req.body;
+  const { reference, clientId, projectId, freelancerId } = req.body;
   console.log({ reference });
   try {
     const response = await fetch(
@@ -125,6 +126,7 @@ const verifyPayment = async (req, res) => {
     console.log({ data }, data.status);
     if (data.data.status === "success") {
       // Update transaction status to completed
+
       const transactionRef = firebaseDb
         .collection("users")
         .doc(clientId)
@@ -143,6 +145,11 @@ const verifyPayment = async (req, res) => {
           paymentStatus: "completed",
           updatedAt: new Date(),
         });
+      if (freelancerId) {
+        setImmediate(() => {
+          sendProjectFundedNotification(freelancerId)
+        })
+      }
       res.status(200).json({ message: "Payment verified successfully" });
     } else {
       res.status(400).json({ error: "Payment verification failed" });
@@ -227,6 +234,11 @@ const releaseFunds = async (req, res) => {
       paymentStatus: "released",
       updatedAt: new Date(),
     });
+    if (freelancerId) {
+      setImmediate(() => {
+        sendReleaseFundsNotification(freelancerId)
+      })
+    }
     res.status(200).json({
       message: "Funds released successfully",
       payoutResponse,
