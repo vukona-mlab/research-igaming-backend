@@ -22,8 +22,9 @@ exports.getFreelancers = async (req, res) => {
     const { category, search } = req.query
     // Calculate the starting point for the query
     let query
-
-    if (category.trim() !== "" && category !== 'undefined' && category !== undefined) {
+    console.log('getting freelancers');
+    
+    if (category && category.trim() !== "" && category !== 'undefined' && category !== undefined) {
       console.log({ category, first: true });
       query = firebaseDb
         .collection("users")
@@ -61,7 +62,7 @@ exports.getFreelancers = async (req, res) => {
       id: doc.id,
       ...doc.data(),
     }));
-    if (category.trim() !== "" && category !== 'undefined' && category !== undefined) {
+    if (category && category.trim() !== "" && category !== 'undefined' && category !== undefined) {
       console.log({ category });
       
       freelancers = freelancers

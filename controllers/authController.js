@@ -7,20 +7,21 @@ const jwt = require("jsonwebtoken");
 const { FieldValue } = require("firebase-admin/firestore");
 const { v4: uuidv4 } = require("uuid");
 const axios = require("axios");
+const { sendAccountBlockedNotification, sendAccountUnblockedNotification } = require("../utils/notification-util");
 
 // Helper to determine if a user profile is complete
 function isProfileCompleted(user) {
   return Boolean(
     user.displayName &&
-      user.name &&
-      user.surname &&
-      user.email &&
-      user.profilePicture &&
-      user.bio &&
-      typeof user.bio === "string" &&
-      user.bio.trim().length > 0 &&
-      user.phoneNumber &&
-      user.phoneNumber !== "undefined"
+    user.name &&
+    user.surname &&
+    user.email &&
+    user.profilePicture &&
+    user.bio &&
+    typeof user.bio === "string" &&
+    user.bio.trim().length > 0 &&
+    user.phoneNumber &&
+    user.phoneNumber !== "undefined"
   );
 }
 
@@ -102,13 +103,21 @@ exports.updateRole = async (req, res) => {
 exports.updateStatus = async (req, res) => {
   const { userId } = req.params;
   const { blocked } = req.body;
-  
+
   try {
     await firebaseDb.collection("users").doc(userId).update({
       blocked,
       updatedAt: new Date(),
     });
-
+    if (blocked) {
+      setImmediate(() => {
+        sendAccountBlockedNotification(userId)
+      })
+    } else {
+      setImmediate(() => {
+        sendAccountUnblockedNotification(userId)
+      })
+    }
     res.status(200).json({
       message: "User status updated successfully",
     });
@@ -241,7 +250,7 @@ exports.update = async (req, res) => {
           expires: "03-09-2491",
         });
         updateObj.profilePicture = imageUrl[0];
-      } catch (err) {}
+      } catch (err) { }
     }
     if (name !== "" && typeof name !== "undefined") {
       updateObj.name = name;
@@ -1043,9 +1052,8 @@ exports.updateAdminProfile = async (req, res) => {
       .doc(adminId)
       .update({
         ...updateData,
-        displayName: `${updateData.name || adminDoc.data().name} ${
-          updateData.surname || adminDoc.data().surname
-        }`,
+        displayName: `${updateData.name || adminDoc.data().name} ${updateData.surname || adminDoc.data().surname
+          }`,
         updatedAt: new Date(),
       });
 

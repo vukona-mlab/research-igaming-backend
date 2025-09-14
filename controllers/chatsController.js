@@ -58,6 +58,11 @@ exports.createChat = async (req, res) => {
       updatedAt: timestamp,
       lastMessage: message || "Chat started",
     });
+    if(freelancerId) {
+      setImmediate(() => {
+        sendNewMessageNotification(freelancerId)
+      })
+    }
 
     return res.status(201).json({
       chatId: newChat.id,
@@ -278,13 +283,14 @@ exports.sendMessage = async (req, res) => {
     const chatData = chatDoc.data();
     const [recipientId] = chatData.participants.filter(id => id !== senderId)
     console.log({ recipientId });
-    try {
-      await sendNewMessageNotification(recipientId)
-    } catch (error) {
-      console.log('error sending not: ', error);
-      
+    if (freelancerId) {
+      setImmediate(() => {
+        sendNewMessageNotification(recipientId)
+      })
     }
-    
+
+
+
     if (!chatData.participants.includes(senderId)) {
       return res
         .status(403)

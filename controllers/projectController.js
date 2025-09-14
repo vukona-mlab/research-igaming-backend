@@ -1,5 +1,6 @@
 const { firebaseDb, firebaseBucket } = require("../config/firebase");
 const { v4: uuidv4 } = require("uuid");
+const { sendSlaAcceptedNotification, sendSlaDeclinedNotification } = require("../utils/notification-util");
 
 // Create Project
 exports.createProject = async (req, res) => {
@@ -274,6 +275,7 @@ exports.deleteProject = async (req, res) => {
   try {
     const { projectId } = req.params;
     const userId = req.user.uid;
+    const { freelancerId } = req.query
 
     // Get project data
     const projectDoc = await firebaseDb
@@ -299,7 +301,11 @@ exports.deleteProject = async (req, res) => {
         error: "Cannot delete project that is already active or completed",
       });
     }
-
+    if (freelancerId) {
+      setImmediate(() => {
+        sendSlaDeclinedNotification(freelancerId, project.title)
+      })
+    }
     await firebaseDb.collection("projects").doc(projectId).delete();
 
     res.status(200).json({
@@ -316,7 +322,7 @@ exports.deleteProject = async (req, res) => {
 exports.updateProjectStatus = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { status } = req.body;
+    const { status, freelancerId } = req.body;
 
     // Validate status
     if (!status) {
@@ -340,7 +346,11 @@ exports.updateProjectStatus = async (req, res) => {
       status,
       updatedAt: new Date(),
     });
-
+    if (status === 'approved' && freelancerId) {
+      setImmediate(() => {
+        sendSlaAcceptedNotification(freelancerId, projectDoc.data().title);
+      })
+    }
     res.status(200).json({ message: "Project status updated successfully" });
   } catch (error) {
     console.error("Error updating project status:", error);

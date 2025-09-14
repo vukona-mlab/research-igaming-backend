@@ -1,21 +1,22 @@
 const { messaging } = require("./config/firebase");
 
 const sendPushNotification = async (fcmToken, title, body) => {
+  // console.log({ fcmToken, title, body });
+
   const message = {
     notification: {
       title,
       body,
     },
     token: fcmToken,
+    data: { title, body }
   };
 
   try {
     const response = await messaging.send(message);
-    console.log('✅ Successfully sent message:', response);
     return response;
   } catch (error) {
-    console.error('❌ Error sending message:', error);
-    throw error;
+    throw error
   }
 };
 module.exports = { sendPushNotification }
