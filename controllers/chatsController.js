@@ -283,7 +283,7 @@ exports.sendMessage = async (req, res) => {
     const chatData = chatDoc.data();
     const [recipientId] = chatData.participants.filter(id => id !== senderId)
     console.log({ recipientId });
-    if (freelancerId) {
+    if (recipientId) {
       setImmediate(() => {
         sendNewMessageNotification(recipientId)
       })
