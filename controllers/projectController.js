@@ -17,6 +17,7 @@ exports.createProject = async (req, res) => {
       chatId,
       inPlatform,
       link,
+      benefits
     } = req.body;
 
     // Validate required fields
@@ -44,6 +45,7 @@ exports.createProject = async (req, res) => {
       budget,
       deadline,
       clientId,
+      benefits,
       freelancerId: freelancerId || null,
       category,
       requirements: requirements || [],
