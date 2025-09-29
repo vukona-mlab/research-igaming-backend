@@ -22,6 +22,7 @@ const {
   initializeSuperAdmin,
   getAdminProfile,
   updateAdminProfile,
+  subscribeEmail,
 } = require("../controllers/authController");
 const upload = require("../middleware/multerUpload");
 const uploadArray = require("../middleware/multerArrayUpload");
@@ -34,6 +35,7 @@ router.post("/login", login);
 // Handles the ID token verification and user creation/authentication
 
 router.post("/google", googleSignIn);
+router.post("/subscribe", subscribeEmail)
 
 router.put(
   "/users/:userId/roles",

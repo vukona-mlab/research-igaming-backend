@@ -607,6 +607,38 @@ exports.deleteDocument = async (req, res) => {
   }
 };
 
+// Subscribe email (footer subscription)
+exports.subscribeEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({ error: "Valid email is required" });
+    }
+
+    // Check if email already subscribed
+    const existing = await firebaseDb
+      .collection("subscriptions")
+      .where("email", "==", email.toLowerCase())
+      .get();
+
+    if (!existing.empty) {
+      return res.status(409).json({ message: "Email already subscribed" });
+    }
+
+    await firebaseDb.collection("subscriptions").add({
+      email: email.toLowerCase(),
+      createdAt: new Date(),
+    });
+
+    res.status(201).json({ message: "Email subscribed successfully" });
+  } catch (error) {
+    console.error("Subscription error:", error);
+    res.status(500).json({ error: "Failed to subscribe" });
+  }
+};
+
+
 // Create admin account (only super admins can create other admins)
 exports.createAdmin = async (req, res) => {
   const { email, password, name, surname } = req.body;

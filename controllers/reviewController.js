@@ -9,6 +9,24 @@ exports.createReview = async (req, res) => {
 
     if (!clientId || !freelancerId || !stars || !message) {
       return res.status(400).json({ error: "All fields are required" });
+
+
+    }
+
+    // New step : Check if client has paid the freelancer for this project 
+    const transactionsSnap=  await firebaseDb
+    .collection("users")
+    .doc(clientId)
+    .collection("transactions")
+    .where("freelancerId" , "==", freelancerId)
+    .where("projectId", "==", projectId)
+    .where("status", "==", "completed")
+    .get();
+
+    if (transactionsSnap.empty) {
+      return res.status(403).json({
+        error: " You can only review freelancers you have paid"
+      })
     }
 
     // Step 1: Retrieve the client profile data from Firestore
@@ -50,7 +68,7 @@ exports.createReview = async (req, res) => {
   }
 };
 
-// cget reviews
+// get reviews
 
 exports.getReviews = async (req, res) => {
   try {

@@ -16,66 +16,57 @@ exports.getFreelancer = async (req, res) => {
 // Get all users with the "freelancer" role and support pagination
 exports.getFreelancers = async (req, res) => {
   try {
-    // Get the page number and page size from query parameters (default pageSize to 30)
     const pageSize = parseInt(req.query.pageSize) || 30;
     const page = parseInt(req.query.page) || 1;
-    const { category, search } = req.query
-    // Calculate the starting point for the query
-    let query
-    console.log('getting freelancers');
-    
-    if (category && category.trim() !== "" && category !== 'undefined' && category !== undefined) {
-      console.log({ category, first: true });
-      query = firebaseDb
-        .collection("users")
-        .where("roles", "array-contains", "freelancer")
+    const { search } = req.query;
 
+    let query = firebaseDb
+      .collection("users")
+      .where("roles", "array-contains", "freelancer");
+
+    // Pagination setup
+    let freelancersSnapshot;
+
+    if (page === 1) {
+      freelancersSnapshot = await query.get();
     } else {
-      console.log({ category });
-      query = firebaseDb
-        .collection("users")
-        .where("roles", "array-contains", "freelancer")
-        .limit(pageSize);
-    }
-    // If it's not the first page, fetch the last document of the previous page
-    if (page > 1) {
-      const lastVisibleDoc = await firebaseDb
-        .collection("users")
-        .orderBy("name") // Ensure you order by a field (for consistency)
-        .limit(pageSize)
-        .startAfter(pageSize * (page - 1) - 1) // Calculate where to start the next page
+      // Firestore pagination using startAfter
+      const lastVisibleDoc = await query
+        .orderBy("displayName") // orderBy required for startAfter
+        .limit(pageSize * (page - 1))
         .get();
 
       const lastDoc = lastVisibleDoc.docs[lastVisibleDoc.docs.length - 1];
-      query = query.startAfter(lastDoc); // Start after the last document from the previous page
+      query = query.orderBy("displayName").startAfter(lastDoc);
+      freelancersSnapshot = await query.limit(pageSize).get();
     }
-
-    // Query Firestore for users with the role "freelancer"
-    const freelancersSnapshot = await query.get();
 
     if (freelancersSnapshot.empty) {
       return res.status(404).json({ message: "No freelancers found" });
     }
 
-    // Map the results into an array of user objects
     let freelancers = freelancersSnapshot.docs.map((doc) => ({
       id: doc.id,
+      uid: doc.id,
       ...doc.data(),
     }));
-    if (category && category.trim() !== "" && category !== 'undefined' && category !== undefined) {
-      console.log({ category });
-      
-      freelancers = freelancers
-        .filter(freelancer => {
-          // console.log({ freelancer });
-          
-          if (freelancer.categories?.includes(category))
-            return freelancer
-        })
-        .slice(0, pageSize)
+
+    // Apply keyword search filter
+    if (search && search.trim() !== "") {
+      const lowerSearch = search.toLowerCase();
+      freelancers = freelancers.filter((f) => {
+        return (
+          f.displayName?.toLowerCase().includes(lowerSearch) ||
+          f.jobTitle?.toLowerCase().includes(lowerSearch) ||
+          f.skills?.some((skill) => skill.toLowerCase().includes(lowerSearch))
+        );
+      });
     }
 
-    res.status(200).json({ freelancers });
+    // Slice to pageSize in case keyword filtering reduced the results
+    freelancers = freelancers.slice(0, pageSize);
+
+    res.status(200).json({ freelancers, totalCount: freelancers.length });
   } catch (error) {
     console.error("Error fetching freelancers:", error);
     res
@@ -83,6 +74,7 @@ exports.getFreelancers = async (req, res) => {
       .json({ error: "An error occurred while fetching freelancers" });
   }
 };
+
 exports.getFreelancerProjects = async (req, res) => {
   console.log("in freelancer projects");
 
